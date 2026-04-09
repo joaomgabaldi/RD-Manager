@@ -7,13 +7,13 @@
       "gecko": {
          "id": "{4b8c9d1e-2f3a-4e5d-b6c7-8a9b0c1d2e3f}",
          "strict_min_version": "109.0",
-		 "data_collection_permissions": {
+         "data_collection_permissions": {
             "required": ["none"]
-		 }
+         }
       }
    },
    "permissions": [ "storage", "contextMenus", "alarms" ],
-   "host_permissions": [ "https://api.real-debrid.com/*" ],
+   "host_permissions": [ "https://api.real-debrid.com/*", "http://127.0.0.1:9666/*" ],
    "background": {
       "scripts": ["background.js"]
    },
