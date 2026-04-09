@@ -30,6 +30,7 @@ let notifications = [];
 let visibleCount = 50;
 let currentFiltered = [];
 let cachedNotificationsEnabled = true;
+let useJDownloader = false;
 
 const dlElementMap = new Map();
 const $ = (sel) => document.querySelector(sel);
@@ -148,12 +149,13 @@ function scheduleNextRefresh() {
 
 // ---- Settings ----
 async function loadSettings() {
-  return browser.storage.local.get(['rd_api_key', 'rd_theme', 'rd_hover_lift', 'rd_accent_color', 'rd_max_height']).then((data) => {
+  return browser.storage.local.get(['rd_api_key', 'rd_theme', 'rd_hover_lift', 'rd_accent_color', 'rd_max_height', 'rd_use_jdownloader']).then((data) => {
     apiKey = data.rd_api_key || '';
     const theme = data.rd_theme || 'dark';
     document.documentElement.setAttribute('data-theme', theme);
     const hoverLift = data.rd_hover_lift !== false ? 'on' : 'off';
     document.documentElement.setAttribute('data-hover-lift', hoverLift);
+    useJDownloader = data.rd_use_jdownloader === true;
     if (data.rd_accent_color) applyAccentColor(data.rd_accent_color);
     applyMaxHeight(data.rd_max_height || 400);
   });
@@ -554,16 +556,16 @@ async function deleteAllVisible() {
 }
 
 async function downloadFile(type, id) {
-  toast('Iniciando download...', 'success');
   try {
     const dl = allDownloads.find(d => String(d.id) === String(id));
 
     if (type === 'web' && dl?._rd_download) {
-      triggerDownload(dl._rd_download);
+      triggerDownload(dl._rd_download, dl.name);
       return;
     }
 
     if (type === 'torrent') {
+      toast('Iniciando download...', 'success');
       let links = dl?.links || [];
       if (links.length === 0) {
         const info = await apiGet(`/torrents/info/${id}`);
@@ -572,7 +574,7 @@ async function downloadFile(type, id) {
 
       if (links.length > 0) {
         const unrestricted = await apiPost('/unrestrict/link', { link: links[0] }, false, TIMEOUT_DOWNLOAD_MS);
-        if (unrestricted?.download) triggerDownload(unrestricted.download);
+        if (unrestricted?.download) triggerDownload(unrestricted.download, dl.name);
         else toast('Falha ao obter link de download', 'error');
       } else {
         toast('Nenhum link de download disponível', 'error');
@@ -587,11 +589,38 @@ async function downloadFile(type, id) {
   }
 }
 
-function triggerDownload(url) {
-  if (!String(url).startsWith('https://')) {
+async function triggerDownload(url, filename = '') {
+  if (!String(url).startsWith('https://') && !String(url).startsWith('http://')) {
     toast('Link de download inválido', 'error');
     return;
   }
+
+  if (useJDownloader) {
+    try {
+      toast('Enviando para o JDownloader...', 'success');
+      const formData = new URLSearchParams();
+      formData.append('urls', url);
+      formData.append('autostart', '1');
+      if (filename) formData.append('package', filename);
+
+      const res = await fetch('http://127.0.0.1:9666/flashgot', {
+        method: 'POST',
+        body: formData.toString(),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (res.ok) {
+        toast('Adicionado ao JDownloader!', 'success');
+      } else {
+        throw new Error('JD2 Error');
+      }
+    } catch (err) {
+      toast('JDownloader não responde (porta 9666)', 'error');
+    }
+    return;
+  }
+
+  toast('Iniciando download...', 'success');
   const a = document.createElement('a');
   a.href = url;
   a.download = '';
@@ -1288,10 +1317,11 @@ function closeModal() {
 }
 
 function showApiKeyModal() {
-  browser.storage.local.get(['rd_context_menu', 'rd_notifications_enabled', 'rd_hover_lift', 'rd_accent_color', 'rd_cached_user', 'rd_max_height']).then((data) => {
+  browser.storage.local.get(['rd_context_menu', 'rd_notifications_enabled', 'rd_hover_lift', 'rd_accent_color', 'rd_cached_user', 'rd_max_height', 'rd_use_jdownloader']).then((data) => {
     const contextMenuEnabled = data.rd_context_menu !== false;
     const notificationsEnabled = data.rd_notifications_enabled !== false;
     const hoverLiftEnabled = data.rd_hover_lift !== false;
+    const jd2Enabled = data.rd_use_jdownloader === true;
     const customAccent = data.rd_accent_color || '';
     const cachedUser = data.rd_cached_user;
     const userPoints = cachedUser?.points != null ? cachedUser.points.toLocaleString() : '—';
@@ -1337,6 +1367,18 @@ function showApiKeyModal() {
           ),
           el('label', {className: 'toggle-switch'},
             el('input', {type: 'checkbox', id: 'toggle-hover-lift', checked: hoverLiftEnabled ? 'checked' : null}),
+            el('span', {className: 'toggle-slider'})
+          )
+        )
+      ),
+      el('div', {className: 'form-group'},
+        el('div', {className: 'toggle-row'},
+          el('div', {},
+            el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, 'Enviar para o JDownloader 2'),
+            el('div', {className: 'form-hint'}, 'Envia links para a porta 9666. O JD2 precisa estar aberto.')
+          ),
+          el('label', {className: 'toggle-switch'},
+            el('input', {type: 'checkbox', id: 'toggle-jd2', checked: jd2Enabled ? 'checked' : null}),
             el('span', {className: 'toggle-slider'})
           )
         )
@@ -1392,6 +1434,10 @@ function showApiKeyModal() {
     $('#toggle-hover-lift').addEventListener('change', (e) => {
       browser.storage.local.set({ rd_hover_lift: e.target.checked });
       document.documentElement.setAttribute('data-hover-lift', e.target.checked ? 'on' : 'off');
+    });
+    $('#toggle-jd2').addEventListener('change', (e) => {
+      useJDownloader = e.target.checked;
+      browser.storage.local.set({ rd_use_jdownloader: useJDownloader });
     });
 
     const maxHeightSlider = $('#input-max-height');
