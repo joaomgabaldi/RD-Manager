@@ -1,5 +1,5 @@
 /* ============================================
-   Real-Debrid Lite — Background Service Worker
+   RD Manager — Background Service Worker
    ============================================ */
 
 const API_BASE = 'https://api.real-debrid.com/rest/1.0';
@@ -26,7 +26,7 @@ function updateContextMenu() {
       if (enabled) {
         browser.contextMenus.create({
           id: 'send-to-rd',
-          title: 'Send to Real-Debrid Lite',
+          title: 'Send to RD Manager',
           contexts: ['link', 'selection']
         });
       }
