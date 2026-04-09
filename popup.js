@@ -246,10 +246,6 @@ function bindEvents() {
     browser.tabs.create({ url: 'https://real-debrid.com/torrents', active: true });
   });
 
-  $('#btn-kofi').addEventListener('click', () => {
-    browser.tabs.create({ url: 'https://ko-fi.com/toolsrf', active: true });
-  });
-
   $('#btn-settings').addEventListener('click', showApiKeyModal);
   $('#btn-setup-api').addEventListener('click', showApiKeyModal);
   $('#btn-notifications').addEventListener('click', showNotificationsModal);
