@@ -1,11 +1,11 @@
 {
    "manifest_version": 3,
-   "name": "Real-Debrid Lite – Download Manager",
+   "name": "RD Manager",
    "version": "1.0.1",
    "description": "Manage all your Real-Debrid downloads in one simple window.",
    "browser_specific_settings": {
       "gecko": {
-         "id": "rd-lite@seu-dominio.com",
+         "id": "rd-manager@seu-dominio.com",
          "strict_min_version": "109.0"
       }
    },
