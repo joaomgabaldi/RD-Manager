@@ -2,17 +2,17 @@
    Real-Debrid Lite — Background Service Worker
    ============================================ */
 
-const API_BASE = 'https://api.real-debrid.com/rest/1.0'; // NOTE: must match API_BASE in popup.js
+const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 const ALARM_NAME = 'rd-completion-check';
-const POLL_INTERVAL_MINUTES = 1; // every 60 seconds
+const POLL_INTERVAL_MINUTES = 1;
 
 // ---- Install ----
-chrome.runtime.onInstalled.addListener(async () => {
+browser.runtime.onInstalled.addListener(async () => {
   scheduleAlarm();
   updateContextMenu();
 });
 
-chrome.runtime.onStartup.addListener(() => {
+browser.runtime.onStartup.addListener(() => {
   scheduleAlarm();
   updateContextMenu();
   checkForCompletedDownloads();
@@ -20,12 +20,11 @@ chrome.runtime.onStartup.addListener(() => {
 
 // ---- Context menu toggle ----
 function updateContextMenu() {
-  chrome.storage.local.get('rd_context_menu', (data) => {
-    const enabled = data.rd_context_menu !== false; // default on
-    chrome.contextMenus.remove('send-to-rd', () => {
-      void chrome.runtime.lastError;
+  browser.storage.local.get('rd_context_menu').then((data) => {
+    const enabled = data.rd_context_menu !== false;
+    browser.contextMenus.remove('send-to-rd').catch(() => {}).finally(() => {
       if (enabled) {
-        chrome.contextMenus.create({
+        browser.contextMenus.create({
           id: 'send-to-rd',
           title: 'Send to Real-Debrid Lite',
           contexts: ['link', 'selection']
@@ -35,7 +34,7 @@ function updateContextMenu() {
   });
 }
 
-chrome.storage.onChanged.addListener((changes, area) => {
+browser.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && 'rd_context_menu' in changes) {
     updateContextMenu();
   }
@@ -43,14 +42,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // ---- Alarm ----
 function scheduleAlarm() {
-  chrome.alarms.get(ALARM_NAME, (existing) => {
+  browser.alarms.get(ALARM_NAME).then((existing) => {
     if (!existing) {
-      chrome.alarms.create(ALARM_NAME, { periodInMinutes: POLL_INTERVAL_MINUTES });
+      browser.alarms.create(ALARM_NAME, { periodInMinutes: POLL_INTERVAL_MINUTES });
     }
   });
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+browser.runtime.onMessage.addListener((msg) => {
   if (msg === 'rd-check-now') setTimeout(checkForCompletedDownloads, 1000);
   if (msg?.action === 'delete-torrents' && Array.isArray(msg.ids)) {
     deleteTorrentsSequentially(msg.ids);
@@ -58,7 +57,7 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 async function deleteTorrentsSequentially(ids) {
-  const { rd_api_key } = await chrome.storage.local.get('rd_api_key');
+  const { rd_api_key } = await browser.storage.local.get('rd_api_key');
   if (!rd_api_key) return;
 
   for (const id of ids) {
@@ -71,7 +70,7 @@ async function deleteTorrentsSequentially(ids) {
   }
 }
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+browser.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) {
     checkForCompletedDownloads();
   }
@@ -79,14 +78,14 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // ---- Completion check ----
 async function checkForCompletedDownloads() {
-  const { rd_api_key, rd_notifications_enabled } = await chrome.storage.local.get(['rd_api_key', 'rd_notifications_enabled']);
+  const { rd_api_key, rd_notifications_enabled } = await browser.storage.local.get(['rd_api_key', 'rd_notifications_enabled']);
   if (!rd_api_key) return;
   if (rd_notifications_enabled === false) return;
 
   try {
-    const { rd_tracked_ids } = await chrome.storage.local.get('rd_tracked_ids');
+    const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
     const trackedIds = new Set(rd_tracked_ids || []);
-    if (trackedIds.size === 0) return; // nothing to watch for
+    if (trackedIds.size === 0) return;
 
     const torrents = await apiFetch(rd_api_key, '/torrents');
     const current = [];
@@ -94,8 +93,7 @@ async function checkForCompletedDownloads() {
       torrents.forEach(t => current.push({ id: String(t.id), name: t.filename, type: 'torrent', ready: isReady(t) }));
     }
 
-    // Include local web downloads (unrestricted links) — they are always ready
-    const { rd_local_downloads } = await chrome.storage.local.get('rd_local_downloads');
+    const { rd_local_downloads } = await browser.storage.local.get('rd_local_downloads');
     if (Array.isArray(rd_local_downloads)) {
       rd_local_downloads.forEach(d => current.push({ id: String(d.id), name: d.name, type: 'web', ready: true }));
     }
@@ -103,11 +101,10 @@ async function checkForCompletedDownloads() {
     const justCompleted = current.filter(dl => dl.ready && trackedIds.has(dl.id));
     if (justCompleted.length === 0) return;
 
-    // Remove completed items from tracked set
     justCompleted.forEach(dl => trackedIds.delete(dl.id));
-    await chrome.storage.local.set({ rd_tracked_ids: [...trackedIds] });
+    await browser.storage.local.set({ rd_tracked_ids: [...trackedIds] });
 
-    const { rd_local_notifications } = await chrome.storage.local.get('rd_local_notifications');
+    const { rd_local_notifications } = await browser.storage.local.get('rd_local_notifications');
     const existing = rd_local_notifications || [];
     const merged = [
       ...justCompleted.map(dl => ({
@@ -120,7 +117,7 @@ async function checkForCompletedDownloads() {
       })),
       ...existing,
     ].slice(0, 99);
-    await chrome.storage.local.set({ rd_local_notifications: merged });
+    await browser.storage.local.set({ rd_local_notifications: merged });
     await updateBadgeCount();
 
   } catch (err) {
@@ -132,18 +129,18 @@ async function checkForCompletedDownloads() {
 const DEFAULT_BADGE_COLOR = '#1a9c4a';
 
 async function getBadgeAccent() {
-  const { rd_accent_color } = await chrome.storage.local.get('rd_accent_color');
+  const { rd_accent_color } = await browser.storage.local.get('rd_accent_color');
   return rd_accent_color || DEFAULT_BADGE_COLOR;
 }
 
 async function withPendingBadge(workFn) {
-  chrome.action.setBadgeBackgroundColor({ color: await getBadgeAccent() });
-  chrome.action.setBadgeText({ text: '...' });
+  browser.action.setBadgeBackgroundColor({ color: await getBadgeAccent() });
+  browser.action.setBadgeText({ text: '...' });
   await workFn();
 }
 
 // ---- Context menu ----
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+browser.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'send-to-rd') return;
 
   const url = info.linkUrl || (info.selectionText ? info.selectionText.trim() : null);
@@ -154,7 +151,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (!isValid) { showBadge(false); return; }
   }
 
-  const { rd_api_key } = await chrome.storage.local.get('rd_api_key');
+  const { rd_api_key } = await browser.storage.local.get('rd_api_key');
   if (!rd_api_key) { showBadge(false); return; }
 
   let workFn;
@@ -163,7 +160,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   } else if (url.endsWith('.torrent') || url.includes('.torrent?')) {
     workFn = () => addTorrentFile(rd_api_key, url);
   } else {
-    // Unrestrict hoster link
     workFn = () => unrestrictLink(rd_api_key, url);
   }
 
@@ -185,7 +181,6 @@ async function addMagnet(apiKey, magnet) {
   });
   if (!res.ok) throw new Error(`API error (${res.status})`);
   const data = await res.json();
-  // Auto-select all files
   if (data.id) {
     await autoSelectFiles(apiKey, data.id);
     await trackId(String(data.id));
@@ -215,7 +210,6 @@ async function autoSelectFiles(apiKey, torrentId) {
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'files=all'
   });
-  // 204 = success, 202 = already done
   if (!res.ok && res.status !== 204 && res.status !== 202) {
     throw new Error(`Select files error (${res.status})`);
   }
@@ -230,7 +224,6 @@ async function unrestrictLink(apiKey, link) {
   if (!res.ok) throw new Error(`API error (${res.status})`);
   const data = await res.json();
   if (data.download) {
-    // Save as local web download
     const entry = {
       id: data.id || `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: data.filename || 'Unnamed Download',
@@ -249,10 +242,10 @@ async function unrestrictLink(apiKey, link) {
         short_name: data.filename || 'Download',
       }],
     };
-    const { rd_local_downloads } = await chrome.storage.local.get('rd_local_downloads');
+    const { rd_local_downloads } = await browser.storage.local.get('rd_local_downloads');
     const existing = rd_local_downloads || [];
     const merged = [entry, ...existing].slice(0, 99);
-    await chrome.storage.local.set({ rd_local_downloads: merged });
+    await browser.storage.local.set({ rd_local_downloads: merged });
     await trackId(String(entry.id));
   }
 }
@@ -260,10 +253,10 @@ async function unrestrictLink(apiKey, link) {
 // ---- Helpers ----
 
 async function trackId(id) {
-  const { rd_tracked_ids } = await chrome.storage.local.get('rd_tracked_ids');
+  const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
   const tracked = new Set(rd_tracked_ids || []);
   tracked.add(id);
-  await chrome.storage.local.set({ rd_tracked_ids: [...tracked] });
+  await browser.storage.local.set({ rd_tracked_ids: [...tracked] });
 }
 
 const TIMEOUT_MS = 10_000;
@@ -288,18 +281,18 @@ function isReady(dl) {
 }
 
 async function updateBadgeCount() {
-  const { rd_local_notifications } = await chrome.storage.local.get('rd_local_notifications');
+  const { rd_local_notifications } = await browser.storage.local.get('rd_local_notifications');
   const unread = (rd_local_notifications || []).filter(n => !n.read).length;
   if (unread > 0) {
-    chrome.action.setBadgeText({ text: unread > 99 ? '99+' : String(unread) });
-    chrome.action.setBadgeBackgroundColor({ color: await getBadgeAccent() });
+    browser.action.setBadgeText({ text: unread > 99 ? '99+' : String(unread) });
+    browser.action.setBadgeBackgroundColor({ color: await getBadgeAccent() });
   } else {
-    chrome.action.setBadgeText({ text: '' });
+    browser.action.setBadgeText({ text: '' });
   }
 }
 
 async function showBadge(success) {
-  chrome.action.setBadgeBackgroundColor({ color: success ? await getBadgeAccent() : '#f46878' });
-  chrome.action.setBadgeText({ text: success ? '✓' : '!' });
+  browser.action.setBadgeBackgroundColor({ color: success ? await getBadgeAccent() : '#f46878' });
+  browser.action.setBadgeText({ text: success ? '✓' : '!' });
   setTimeout(() => updateBadgeCount(), 2000);
 }
