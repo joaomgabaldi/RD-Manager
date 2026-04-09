@@ -7,14 +7,10 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <!-- HEADER -->
   <header id="header">
     <div class="header-left">
       <span class="logo-icon" title="Open Real-Debrid Dashboard">Ⓡ</span>
       <span class="logo-text">RD <span class="logo-accent">Lite</span></span>
-      <button id="btn-kofi" class="icon-btn logo-open-btn" title="Support me on Ko-fi">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      </button>
     </div>
     <div class="header-right">
       <div id="header-plan-tile" class="header-plan-tile" style="display:none;">
@@ -35,7 +31,6 @@
     </div>
   </header>
 
-  <!-- ACTION BUTTONS -->
   <div id="action-bar">
     <button id="btn-add-torrent" class="action-btn primary">
       <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -51,8 +46,7 @@
     </button>
   </div>
 
-  <!-- SEARCH BOX -->
-<div id="search-box" class="search-container">
+  <div id="search-box" class="search-container">
     <div class="search-row">
       <div class="search-input-wrap">
         <input type="text" id="search-input" class="search-input" placeholder="Search downloads..." spellcheck="false">
@@ -83,7 +77,6 @@
     </button>
   </nav>
 
-  <!-- DOWNLOAD LIST -->
   <main id="downloads-container">
     <div id="loading" class="state-message">
       <div class="spinner"></div>
@@ -101,7 +94,6 @@
     <ul id="download-list"></ul>
   </main>
 
-  <!-- MODAL OVERLAY -->
   <div id="modal-overlay" class="hidden">
     <div id="modal" role="dialog">
       <div class="modal-header">
