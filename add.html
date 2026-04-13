@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adicionar Torrent - RD Manager</title>
+  <link rel="stylesheet" href="popup.css">
+  <style>
+    body { 
+      min-height: 100vh; max-height: 100vh; 
+      background: var(--bg-base); 
+      display: flex; flex-direction: column; overflow: hidden; 
+    }
+    .window-header { 
+      padding: 12px 16px; background: var(--bg-surface); 
+      border-bottom: 1px solid var(--border); 
+    }
+    .window-title { 
+      font-size: var(--text-lg); font-weight: 700; color: var(--text); 
+    }
+    #content { 
+      flex: 1; padding: 16px; overflow-y: auto; 
+    }
+  </style>
+</head>
+<body>
+  <div class="window-header">
+    <span class="window-title">Adicionar <span style="color: var(--accent)">Torrent</span></span>
+  </div>
+  <div id="content"></div>
+  <script src="add.js"></script>
+</body>
+</html>
