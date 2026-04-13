@@ -360,7 +360,11 @@ function bindEvents() {
 function handleListClick(e) {
   const dlBtn = e.target.closest('.dl-download-btn');
   if (dlBtn) {
-    downloadFile(dlBtn.dataset.type, dlBtn.dataset.id);
+    if (dlBtn.dataset.action === 'select-files') {
+      openFileSelectionModal(dlBtn.dataset.id);
+    } else {
+      downloadFile(dlBtn.dataset.type, dlBtn.dataset.id);
+    }
     return;
   }
 
@@ -988,11 +992,14 @@ function renderDownloads() {
       }
 
       const completed = isCompleted(dl);
+      const header = li.querySelector('.dl-item-header');
+      const delBtn = li.querySelector('.dl-delete-btn');
+      
       const existingDlBtn = li.querySelector('.dl-download-btn');
-      if (completed && canDownload(dl) && !existingDlBtn) {
-        const header = li.querySelector('.dl-item-header');
-        const delBtn = li.querySelector('.dl-delete-btn');
-        if (header && delBtn) {
+      
+      if (completed && canDownload(dl) && header && delBtn) {
+        if (!existingDlBtn || existingDlBtn.dataset.action === 'select-files') {
+          if (existingDlBtn) existingDlBtn.remove();
           const dlBtn = document.createElement('button');
           dlBtn.className = 'dl-download-btn';
           dlBtn.dataset.type = dl._type;
@@ -1003,6 +1010,24 @@ function renderDownloads() {
           dlBtn.appendChild(dlBtnIcon);
           header.insertBefore(dlBtn, delBtn);
         }
+      } else if (dl.download_state === 'waiting_selection' && header && delBtn) {
+        if (!existingDlBtn || existingDlBtn.dataset.action !== 'select-files') {
+          if (existingDlBtn) existingDlBtn.remove();
+          const selectBtn = document.createElement('button');
+          selectBtn.className = 'dl-download-btn';
+          selectBtn.dataset.action = 'select-files';
+          selectBtn.dataset.id = String(dl.id);
+          selectBtn.title = 'Selecionar Arquivos';
+          const selectIcon = makeSvg([
+            ['polyline', {points: '9 11 12 14 22 4'}],
+            ['path', {d: 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'}]
+          ]);
+          selectIcon.style.cssText = 'position:relative;z-index:1;';
+          selectBtn.appendChild(selectIcon);
+          header.insertBefore(selectBtn, delBtn);
+        }
+      } else if (!completed && dl.download_state !== 'waiting_selection' && existingDlBtn) {
+        existingDlBtn.remove();
       }
 
       const currentFileCount = (dl.files || []).length;
@@ -1189,6 +1214,19 @@ function renderItem(dl) {
     dlBtnIcon.style.cssText = 'position:relative;z-index:1;';
     dlBtn.appendChild(dlBtnIcon);
     header.appendChild(dlBtn);
+  } else if (dl.download_state === 'waiting_selection') {
+    const selectBtn = document.createElement('button');
+    selectBtn.className = 'dl-download-btn';
+    selectBtn.dataset.action = 'select-files';
+    selectBtn.dataset.id = String(dl.id);
+    selectBtn.title = 'Selecionar Arquivos';
+    const selectIcon = makeSvg([
+      ['polyline', {points: '9 11 12 14 22 4'}],
+      ['path', {d: 'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'}]
+    ]);
+    selectIcon.style.cssText = 'position:relative;z-index:1;';
+    selectBtn.appendChild(selectIcon);
+    header.appendChild(selectBtn);
   }
 
   const deleteBtn = document.createElement('button');
@@ -1501,6 +1539,91 @@ function showApiKeyModal() {
   });
 }
 
+async function openFileSelectionModal(torrentId) {
+  const modalBody = el('div', {className: 'state-message'},
+    el('div', {className: 'spinner'}),
+    el('span', {}, 'Obtendo arquivos do torrent...')
+  );
+  openModalWithNode('Selecionar Arquivos', modalBody);
+
+  let info;
+  let attempts = 0;
+  while (attempts < 30) {
+    info = await apiGet(`/torrents/info/${torrentId}`);
+    if (info && info.status !== 'magnet_conversion') break;
+    await new Promise(r => setTimeout(r, 1000));
+    attempts++;
+  }
+
+  if (!info || info.status === 'error' || info.status === 'dead') {
+    toast('Erro ao obter arquivos do torrent', 'error');
+    closeModal();
+    return;
+  }
+
+  if (!info.files || info.files.length === 0) {
+    toast('Nenhum arquivo encontrado para seleção', 'error');
+    closeModal();
+    return;
+  }
+
+  const fileList = el('ul', {className: 'dl-files-list', style: 'max-height: 300px; overflow-y: auto; margin: 10px 0; background: var(--bg-hover, rgba(0,0,0,0.1)); border-radius: 6px; padding: 5px; list-style: none;'});
+  const checkboxes = [];
+
+  info.files.forEach(f => {
+    const cb = el('input', {type: 'checkbox', value: String(f.id), style: 'margin-right: 10px; cursor: pointer;'});
+    const li = el('li', {className: 'dl-file-item', style: 'display: flex; align-items: center; padding: 8px 5px; cursor: pointer; border-bottom: 1px solid var(--border-color, #333);'},
+      cb,
+      el('span', {className: 'dl-file-name', style: 'flex: 1; word-break: break-all; font-size: 13px;'}, f.path.replace(/^\//, '')),
+      el('span', {className: 'dl-file-size', style: 'white-space: nowrap; margin-left: 10px; color: var(--text-muted, #888); font-size: 12px;'}, formatBytes(f.bytes))
+    );
+    li.addEventListener('click', (e) => {
+      if (e.target !== cb) cb.checked = !cb.checked;
+    });
+    fileList.appendChild(li);
+    checkboxes.push(cb);
+  });
+
+  if (fileList.lastChild) fileList.lastChild.style.borderBottom = 'none';
+
+  const selectAllBtn = el('button', {className: 'action-btn ghost', style: 'margin-bottom: 10px; width: 100%; justify-content: center;'}, 'Selecionar Tudo / Inverter');
+  selectAllBtn.addEventListener('click', () => {
+    const allChecked = checkboxes.every(c => c.checked);
+    checkboxes.forEach(c => c.checked = !allChecked);
+  });
+
+  const confirmBtn = el('button', {className: 'form-submit', style: 'margin-top: 10px;'}, 'Iniciar Download');
+  confirmBtn.addEventListener('click', async () => {
+    const selected = checkboxes.filter(c => c.checked).map(c => c.value);
+    if (selected.length === 0) return toast('Selecione pelo menos um arquivo', 'error');
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Iniciando...';
+    try {
+      await apiPost(`/torrents/selectFiles/${torrentId}`, { files: selected.join(',') });
+      toast('Arquivos selecionados!', 'success');
+      closeModal();
+      fetchAll();
+      browser.runtime.sendMessage('rd-check-now');
+    } catch (err) {
+      toast('Falha ao iniciar o download', 'error');
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Iniciar Download';
+    }
+  });
+
+  const newBody = el('div', {},
+    selectAllBtn,
+    fileList,
+    confirmBtn
+  );
+  
+  const modalTitle = document.getElementById('modal-title');
+  if (modalTitle) modalTitle.textContent = 'Selecionar Arquivos';
+  const mBody = document.getElementById('modal-body');
+  if (mBody) mBody.replaceChildren(newBody);
+}
+
 function showTorrentModal() {
   if (!apiKey) return showApiKeyModal();
 
@@ -1575,7 +1698,6 @@ function showTorrentModal() {
         if (!res.ok) throw new Error(`API error (${res.status})`);
         const data = await res.json();
         torrentId = data.id;
-        if (torrentId) await apiPost(`/torrents/selectFiles/${torrentId}`, { files: 'all' });
       } else {
         if (!magnet.startsWith('magnet:')) {
           toast('Link magnet inválido', 'error');
@@ -1585,14 +1707,15 @@ function showTorrentModal() {
         }
         const data = await apiPost('/torrents/addMagnet', { magnet: magnet });
         torrentId = data?.id;
-        if (torrentId) await apiPost(`/torrents/selectFiles/${torrentId}`, { files: 'all' });
       }
 
-      if (torrentId) await trackId(String(torrentId));
-      toast('Torrent adicionado!', 'success');
-      closeModal();
-      fetchAll();
-      browser.runtime.sendMessage('rd-check-now');
+      if (torrentId) {
+        await trackId(String(torrentId));
+        toast('Torrent adicionado! Carregando arquivos...', 'success');
+        openFileSelectionModal(torrentId);
+        fetchAll();
+        browser.runtime.sendMessage('rd-check-now');
+      }
     } catch (err) {
       toast('Falha ao adicionar torrent', 'error');
       submitBtn.disabled = false;
