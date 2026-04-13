@@ -172,7 +172,6 @@ async function addMagnet(apiKey, magnet) {
   if (!res.ok) throw new Error(`API error (${res.status})`);
   const data = await res.json();
   if (data.id) {
-    await autoSelectFiles(apiKey, data.id);
     await trackId(String(data.id));
   }
 }
@@ -189,19 +188,7 @@ async function addTorrentFile(apiKey, url) {
   if (!res.ok) throw new Error(`API error (${res.status})`);
   const data = await res.json();
   if (data.id) {
-    await autoSelectFiles(apiKey, data.id);
     await trackId(String(data.id));
-  }
-}
-
-async function autoSelectFiles(apiKey, torrentId) {
-  const res = await fetch(`${API_BASE}/torrents/selectFiles/${torrentId}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'files=all'
-  });
-  if (!res.ok && res.status !== 204 && res.status !== 202) {
-    throw new Error(`Select files error (${res.status})`);
   }
 }
 
