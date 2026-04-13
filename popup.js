@@ -344,7 +344,7 @@ function bindEvents() {
     });
   });
 
-  $('#modal-close').addEventListener('click', closeModal);
+  $('#modal-close').addEventListener('click', () => closeModal());
   $('#modal-overlay').addEventListener('click', (e) => {
     if (e.target === $('#modal-overlay')) closeModal();
   });
@@ -1308,11 +1308,14 @@ function getStatusClass(status) {
   return 'downloading';
 }
 
-function openModalWithNode(title, bodyNode) {
+function openModalWithNode(title, bodyNode, locked = false) {
   document.querySelectorAll('.notifications-mark-all').forEach(el => el.remove());
   $('#modal-title').textContent = title;
   $('#modal-body').replaceChildren(bodyNode);
-  $('#modal-overlay').classList.remove('hidden');
+  const overlay = $('#modal-overlay');
+  overlay.classList.remove('hidden');
+  overlay.dataset.locked = locked ? 'true' : 'false';
+  $('#modal-close').style.display = locked ? 'none' : '';
   initFixedTooltips();
 }
 
@@ -1341,8 +1344,12 @@ function initFixedTooltips() {
   });
 }
 
-function closeModal() {
-  $('#modal-overlay').classList.add('hidden');
+function closeModal(force = false) {
+  const overlay = $('#modal-overlay');
+  if (!force && overlay.dataset.locked === 'true') return;
+  overlay.classList.add('hidden');
+  overlay.dataset.locked = 'false';
+  $('#modal-close').style.display = '';
 }
 
 function showApiKeyModal() {
@@ -1544,33 +1551,53 @@ function showApiKeyModal() {
 }
 
 async function openFileSelectionModal(torrentId) {
-  const modalBody = el('div', {className: 'state-message'},
+  let isCancelled = false;
+
+  const handleCancel = async (btn) => {
+    isCancelled = true;
+    if (btn) btn.disabled = true;
+    try {
+      await apiDelete(`/torrents/delete/${torrentId}`);
+      toast('Torrent cancelado e removido', 'success');
+    } catch (err) {
+      toast('Erro ao remover torrent', 'error');
+    }
+    closeModal(true);
+    fetchAll();
+  };
+
+  const cancelLoadingBtn = el('button', {className: 'action-btn ghost', style: 'margin-top: 15px; width: 100%; justify-content: center;'}, 'Cancelar Torrent');
+  cancelLoadingBtn.addEventListener('click', () => handleCancel(cancelLoadingBtn));
+
+  const modalBody = el('div', {className: 'state-message', style: 'padding: 20px 0;'},
     el('div', {className: 'spinner'}),
-    el('span', {}, 'Obtendo arquivos do torrent...')
+    el('span', {style: 'margin-top: 10px; display: block;'}, 'Obtendo arquivos do torrent...'),
+    cancelLoadingBtn
   );
-  openModalWithNode('Selecionar Arquivos', modalBody);
+
+  openModalWithNode('Selecionar Arquivos', modalBody, true);
 
   let info;
   let attempts = 0;
   while (attempts < 30) {
-    if ($('#modal-overlay').classList.contains('hidden')) return; 
+    if (isCancelled) return;
     info = await apiGet(`/torrents/info/${torrentId}`);
     if (info && info.status !== 'magnet_conversion') break;
     await new Promise(r => setTimeout(r, 1000));
     attempts++;
   }
 
-  if ($('#modal-overlay').classList.contains('hidden')) return;
+  if (isCancelled) return;
 
   if (!info || info.status === 'error' || info.status === 'dead') {
     toast('Erro ao obter arquivos do torrent', 'error');
-    closeModal();
+    closeModal(true);
     return;
   }
 
   if (!info.files || info.files.length === 0) {
     toast('Nenhum arquivo encontrado para seleção', 'error');
-    closeModal();
+    closeModal(true);
     return;
   }
 
@@ -1599,30 +1626,41 @@ async function openFileSelectionModal(torrentId) {
     checkboxes.forEach(c => c.checked = !allChecked);
   });
 
-  const confirmBtn = el('button', {className: 'form-submit', style: 'margin-top: 10px;'}, 'Iniciar Download');
+  const cancelBtn = el('button', {className: 'action-btn ghost', style: 'flex: 1; margin-right: 5px; justify-content: center;'}, 'Cancelar');
+  const confirmBtn = el('button', {className: 'form-submit', style: 'flex: 1; margin-left: 5px;'}, 'Iniciar Download');
+
+  cancelBtn.addEventListener('click', () => {
+    confirmBtn.disabled = true;
+    handleCancel(cancelBtn);
+  });
+
   confirmBtn.addEventListener('click', async () => {
     const selected = checkboxes.filter(c => c.checked).map(c => c.value);
     if (selected.length === 0) return toast('Selecione pelo menos um arquivo', 'error');
 
     confirmBtn.disabled = true;
+    cancelBtn.disabled = true;
     confirmBtn.textContent = 'Iniciando...';
     try {
       await apiPost(`/torrents/selectFiles/${torrentId}`, { files: selected.join(',') });
       toast('Arquivos selecionados!', 'success');
-      closeModal();
+      closeModal(true);
       fetchAll();
       browser.runtime.sendMessage('rd-check-now');
     } catch (err) {
       toast('Falha ao iniciar o download', 'error');
       confirmBtn.disabled = false;
+      cancelBtn.disabled = false;
       confirmBtn.textContent = 'Iniciar Download';
     }
   });
 
+  const btnRow = el('div', {style: 'display: flex; margin-top: 10px; justify-content: space-between;'}, cancelBtn, confirmBtn);
+
   const newBody = el('div', {},
     selectAllBtn,
     fileList,
-    confirmBtn
+    btnRow
   );
   
   const modalTitle = document.getElementById('modal-title');
@@ -1785,7 +1823,7 @@ function showWebLinkModal() {
         closeModal();
         fetchAll();
       } else if (succeeded.length === 0) {
-        toast('Falha em todos os links', 'error');
+        toast('Falha em todos links', 'error');
         submitBtn.disabled = false;
         submitBtn.classList.remove('loading');
         submitBtn.replaceChildren('Desbloquear', el('span', {className: 'btn-spinner'}));
