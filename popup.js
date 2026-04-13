@@ -50,9 +50,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.addEventListener('pagehide', () => stopAutoRefresh());
 
 async function loadCachedStorageValues() {
-  return browser.storage.local.get(['rd_notifications_enabled']).then((data) => {
+  return browser.storage.local.get(['rd_notifications_enabled', 'rd_ignore_locks']).then((data) => {
     cachedNotificationsEnabled = data.rd_notifications_enabled !== false;
+    if (data.rd_ignore_locks && Array.isArray(data.rd_ignore_locks)) {
+      ignoreAutoLockIds = new Set(data.rd_ignore_locks);
+    }
   });
+}
+
+function addIgnoreLock(id) {
+  ignoreAutoLockIds.add(String(id));
+  browser.storage.local.set({ rd_ignore_locks: Array.from(ignoreAutoLockIds) });
 }
 
 browser.storage.onChanged.addListener((changes, area) => {
@@ -766,6 +774,19 @@ async function fetchAll(isBackgroundSync = false) {
       });
     }
 
+    // Limpa a lista de locks ignorados mantendo apenas os IDs que ainda existem nos downloads ativos
+    let changedLocks = false;
+    const currentIds = new Set(allDownloads.map(d => String(d.id)));
+    for (const id of ignoreAutoLockIds) {
+      if (!currentIds.has(id)) {
+        ignoreAutoLockIds.delete(id);
+        changedLocks = true;
+      }
+    }
+    if (changedLocks) {
+      browser.storage.local.set({ rd_ignore_locks: Array.from(ignoreAutoLockIds) });
+    }
+
     cacheData(allDownloads);
 
     if (!isBackgroundSync) visibleCount = 50;
@@ -853,7 +874,7 @@ function mapRdStatus(status) {
   const s = (status || '').toLowerCase();
   const map = {
     'magnet_error': 'error',
-    'magnet_conversion': 'processing',
+    'magnet_conversion': 'waiting_selection',
     'waiting_files_selection': 'waiting_selection',
     'queued': 'queued',
     'downloading': 'downloading',
@@ -1298,7 +1319,7 @@ function getStatus(dl) {
     'dead': 'erro',
     'processing': 'processando',
     'compressing': 'processando',
-    'magnet_conversion': 'processando',
+    'magnet_conversion': 'aguardando seleção',
     'waiting_selection': 'aguardando seleção',
     'waiting_files_selection': 'aguardando seleção',
     'queued': 'na fila',
@@ -1573,20 +1594,21 @@ async function openFileSelectionModal(torrentId) {
     if (btn) btn.disabled = true;
     try {
       await apiDelete(`/torrents/delete/${torrentId}`);
-      toast('Torrent cancelado e removido', 'success');
+      toast('Torrent cancelado', 'success');
     } catch (err) {
-      toast('Erro ao remover torrent', 'error');
+      toast('Erro ao remover', 'error');
     }
+    addIgnoreLock(torrentId);
     closeModal(true);
     fetchAll();
   };
 
-  const cancelLoadingBtn = el('button', {className: 'action-btn', style: 'margin-top: 15px; width: 100%; justify-content: center; background-color: #f46878; color: white; border: none;'}, 'Cancelar Torrent');
+  const cancelLoadingBtn = el('button', {className: 'form-submit', style: 'margin-top: 15px; width: 100%; justify-content: center; background: #f46878 !important; color: #fff !important; border: none !important;'}, 'Cancelar Torrent');
   cancelLoadingBtn.addEventListener('click', () => handleCancel(cancelLoadingBtn));
 
   const modalBody = el('div', {className: 'state-message', style: 'padding: 20px 0;'},
     el('div', {className: 'spinner'}),
-    el('span', {style: 'margin-top: 10px; display: block;'}, 'Obtendo arquivos do torrent...'),
+    el('span', {style: 'margin-top: 10px; display: block;'}, 'Aguardando conversão do magnet...'),
     cancelLoadingBtn
   );
 
@@ -1594,8 +1616,11 @@ async function openFileSelectionModal(torrentId) {
 
   let info;
   let attempts = 0;
-  while (attempts < 30) {
-    if (isCancelled) return;
+  while (attempts < 60) {
+    if (isCancelled || $('#modal-overlay').classList.contains('hidden')) {
+      isCancelled = true;
+      return;
+    }
     try {
       info = await apiGet(`/torrents/info/${torrentId}`);
       if (info && info.status !== 'magnet_conversion') break;
@@ -1608,15 +1633,24 @@ async function openFileSelectionModal(torrentId) {
 
   if (!info || info.status === 'error' || info.status === 'dead') {
     toast('Erro ao obter arquivos do torrent', 'error');
-    ignoreAutoLockIds.add(String(torrentId));
+    addIgnoreLock(torrentId);
     closeModal(true);
+    fetchAll();
+    return;
+  }
+
+  if (info.status !== 'waiting_files_selection') {
+    addIgnoreLock(torrentId);
+    closeModal(true);
+    fetchAll();
     return;
   }
 
   if (!info.files || info.files.length === 0) {
     toast('Nenhum arquivo encontrado para seleção', 'error');
-    ignoreAutoLockIds.add(String(torrentId));
+    addIgnoreLock(torrentId);
     closeModal(true);
+    fetchAll();
     return;
   }
 
@@ -1645,7 +1679,7 @@ async function openFileSelectionModal(torrentId) {
     checkboxes.forEach(c => c.checked = !allChecked);
   });
 
-  const cancelBtn = el('button', {className: 'action-btn', style: 'flex: 1; margin-right: 5px; justify-content: center; background-color: #f46878; color: white; border: none;'}, 'Cancelar');
+  const cancelBtn = el('button', {className: 'form-submit', style: 'flex: 1; margin-right: 5px; background: #f46878 !important; color: #fff !important; border: none !important;'}, 'Cancelar');
   const confirmBtn = el('button', {className: 'form-submit', style: 'flex: 1; margin-left: 5px;'}, 'Iniciar Download');
 
   cancelBtn.addEventListener('click', () => {
@@ -1663,6 +1697,7 @@ async function openFileSelectionModal(torrentId) {
     try {
       await apiPost(`/torrents/selectFiles/${torrentId}`, { files: selected.join(',') });
       toast('Arquivos selecionados!', 'success');
+      addIgnoreLock(torrentId);
       closeModal(true);
       fetchAll();
       browser.runtime.sendMessage('rd-check-now');
