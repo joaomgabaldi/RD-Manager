@@ -258,8 +258,8 @@ function bindEvents() {
     browser.tabs.create({ url: 'https://real-debrid.com/torrents', active: true });
   });
 
-  $('#btn-settings').addEventListener('click', showAuthModal);
-  $('#btn-login-api').addEventListener('click', showAuthModal);
+  $('#btn-settings').addEventListener('click', () => showAuthModal(false));
+  $('#btn-login-api').addEventListener('click', () => showAuthModal(true));
   $('#btn-notifications').addEventListener('click', showNotificationsModal);
   $('#btn-add-torrent').addEventListener('click', showTorrentModal);
   $('#btn-add-webdl').addEventListener('click', showWebLinkModal);
@@ -663,6 +663,10 @@ async function forceLogout(msg = 'Acesso revogado ou expirado. Por favor, recone
     'rd_cached_downloads', 'rd_oauth_pending'
   ]);
   allDownloads = [];
+  
+  const tile = $('#header-plan-tile');
+  if (tile) tile.style.display = 'none';
+  
   closeModal(true);
   showState('no-api');
   if (msg) toast(msg, 'error');
@@ -1462,7 +1466,8 @@ function closeModal(force = false) {
   if (force) currentlyLockedTorrentId = null;
 }
 
-function showAuthModal() {
+function showAuthModal(autoStartOauth = false) {
+  const autoStart = autoStartOauth === true;
   browser.storage.local.get(['rd_context_menu', 'rd_notifications_enabled', 'rd_hover_lift', 'rd_accent_color', 'rd_cached_user', 'rd_max_height', 'rd_use_jdownloader', 'rd_oauth_pending']).then((data) => {
     const contextMenuEnabled = data.rd_context_menu !== false;
     const notificationsEnabled = data.rd_notifications_enabled !== false;
@@ -1615,7 +1620,10 @@ function showAuthModal() {
         renderOAuthPending(data.rd_oauth_pending);
       } else {
         browser.storage.local.remove('rd_oauth_pending');
+        if (autoStart) startOAuthFlow();
       }
+    } else if (!hasValidToken && autoStart) {
+      startOAuthFlow();
     }
 
     const logoutBtn = $('#btn-logout');
@@ -1648,7 +1656,7 @@ async function startOAuthFlow() {
     renderOAuthPending(pendingData);
   } catch (err) {
     container.replaceChildren(el('div', {style: 'color: #f46878;'}, 'Erro ao iniciar autenticação.'));
-    setTimeout(showAuthModal, 2000);
+    setTimeout(() => showAuthModal(false), 2000);
   }
 }
 
@@ -1669,7 +1677,7 @@ function renderOAuthPending(data) {
   $('#btn-cancel-oauth').addEventListener('click', async () => {
     if (oauthPollingInterval) { clearInterval(oauthPollingInterval); oauthPollingInterval = null; }
     await browser.storage.local.remove('rd_oauth_pending');
-    showAuthModal();
+    showAuthModal(false);
   });
 
   if (oauthPollingInterval) clearInterval(oauthPollingInterval);
@@ -1874,7 +1882,7 @@ async function openFileSelectionModal(torrentId) {
 }
 
 function showTorrentModal() {
-  if (!hasValidToken) return showAuthModal();
+  if (!hasValidToken) return showAuthModal(true);
 
   const infoIconSvg = makeSvg([['circle',{cx:'12',cy:'12',r:'10'}],['line',{x1:'12',y1:'16',x2:'12',y2:'12'}],['line',{x1:'12',y1:'8',x2:'12.01',y2:'8'}]]);
   const btnSvg = makeSvg([['path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}],['polyline',{points:'14 2 14 8 20 8'}]]);
@@ -1978,7 +1986,7 @@ function showTorrentModal() {
 }
 
 function showWebLinkModal() {
-  if (!hasValidToken) return showAuthModal();
+  if (!hasValidToken) return showAuthModal(true);
 
   const infoIconSvg = makeSvg([['circle',{cx:'12',cy:'12',r:'10'}],['line',{x1:'12',y1:'16',x2:'12',y2:'12'}],['line',{x1:'12',y1:'8',x2:'12.01',y2:'8'}]]);
   const compareSvg = makeSvg([['path',{d:'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'}],['polyline',{points:'15 3 21 3 21 9'}],['line',{x1:'10',y1:'14',x2:'21',y2:'3'}]]);
