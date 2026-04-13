@@ -1,12 +1,7 @@
-/* ============================================
-   RD Manager — Background Service Worker
-   ============================================ */
-
 const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 const ALARM_NAME = 'rd-completion-check';
 const POLL_INTERVAL_MINUTES = 1;
 
-// ---- Install ----
 browser.runtime.onInstalled.addListener(async () => {
   scheduleAlarm();
   updateContextMenu();
@@ -18,7 +13,6 @@ browser.runtime.onStartup.addListener(() => {
   checkForCompletedDownloads();
 });
 
-// ---- Context menu toggle ----
 function updateContextMenu() {
   browser.storage.local.get('rd_context_menu').then((data) => {
     const enabled = data.rd_context_menu !== false;
@@ -40,7 +34,6 @@ browser.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// ---- Alarm ----
 function scheduleAlarm() {
   browser.alarms.get(ALARM_NAME).then((existing) => {
     if (!existing) {
@@ -76,7 +69,6 @@ browser.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-// ---- Completion check ----
 async function checkForCompletedDownloads() {
   const { rd_api_key, rd_notifications_enabled } = await browser.storage.local.get(['rd_api_key', 'rd_notifications_enabled']);
   if (!rd_api_key) return;
@@ -125,7 +117,6 @@ async function checkForCompletedDownloads() {
   }
 }
 
-// ---- Badge accent color ----
 const DEFAULT_BADGE_COLOR = '#1a9c4a';
 
 async function getBadgeAccent() {
@@ -139,7 +130,6 @@ async function withPendingBadge(workFn) {
   await workFn();
 }
 
-// ---- Context menu ----
 browser.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== 'send-to-rd') return;
 
@@ -249,8 +239,6 @@ async function unrestrictLink(apiKey, link) {
     await trackId(String(entry.id));
   }
 }
-
-// ---- Helpers ----
 
 async function trackId(id) {
   const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
