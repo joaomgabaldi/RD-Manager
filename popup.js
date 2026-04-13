@@ -218,7 +218,6 @@ function bindEvents() {
   $('#btn-login-api').addEventListener('click', () => showAuthModal(true));
   $('#btn-notifications').addEventListener('click', showNotificationsModal);
   
-  // MODIFICADO AQUI: Agora ele abre a janela nativa e destrói o popup
   $('#btn-add-torrent').addEventListener('click', () => {
     if (!hasValidToken) {
       showAuthModal(true);
@@ -230,7 +229,7 @@ function bindEvents() {
       width: 420,
       height: 550
     });
-    window.close(); // Fecha a extensão principal
+    window.close();
   });
 
   $('#btn-add-webdl').addEventListener('click', showWebLinkModal);
@@ -1757,7 +1756,7 @@ async function openFileSelectionModal(torrentId) {
   const checkboxes = [];
 
   info.files.forEach(f => {
-    const cb = el('input', {type: 'checkbox', value: String(f.id), style: 'margin-right: 10px; cursor: pointer; flex-shrink: 0;'});
+    const cb = el('input', {type: 'checkbox', checked: 'checked', value: String(f.id), style: 'margin-right: 10px; cursor: pointer; flex-shrink: 0;'});
     const li = el('li', {className: 'dl-file-item', style: 'display: flex; align-items: center; padding: 8px 5px; cursor: pointer; border-bottom: 1px solid var(--border-color, #333);'},
       cb,
       el('span', {className: 'dl-file-name', style: 'flex: 1; word-break: break-all; font-size: 13px;'}, f.path.replace(/^\//, '')),
