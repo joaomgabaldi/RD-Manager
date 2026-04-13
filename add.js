@@ -139,21 +139,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 function renderAddForm() {
   const infoIconSvg = makeSvg([['circle',{cx:'12',cy:'12',r:'10'}],['line',{x1:'12',y1:'16',x2:'12',y2:'12'}],['line',{x1:'12',y1:'8',x2:'12.01',y2:'8'}]]);
   const btnSvg = makeSvg([['path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}],['polyline',{points:'14 2 14 8 20 8'}]]);
+  const uploadSvg = makeSvg([['path',{d:'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'}],['polyline',{points:'17 8 12 3 7 8'}],['line',{x1:'12',y1:'3',x2:'12',y2:'15'}]]);
 
   const form = el('div', {},
     el('div', {className: 'form-group'},
       el('div', {className: 'form-label-row'},
         el('div', {className: 'form-label-left'},
           el('label', {className: 'form-label'}, 'Link Magnet'),
-          el('span', {className: 'info-icon'}, infoIconSvg.cloneNode(true), el('span', {className: 'info-tooltip'}, 'Cole um link magnet ou faça upload de um arquivo .torrent.'))
+          el('span', {className: 'info-icon'}, infoIconSvg.cloneNode(true), el('span', {className: 'info-tooltip'}, 'Cole um link magnet ou arraste um arquivo .torrent abaixo.'))
         )
       ),
       el('textarea', {className: 'form-input', id: 'input-magnet', placeholder: 'magnet:?xt=urn:btih:...', rows: '5', spellcheck: 'false'})
     ),
     el('div', {className: 'form-divider'}, el('span', {}, 'ou')),
     el('div', {className: 'form-group'},
-      el('input', {type: 'file', id: 'input-torrent-file', accept: '.torrent', style: 'display:none'}),
-      el('button', {className: 'form-file-btn', id: 'btn-select-torrent'}, btnSvg.cloneNode(true), 'Selecionar arquivo .torrent'),
+      el('div', {className: 'form-file-btn', id: 'dropzone-torrent', style: 'flex-direction: column; padding: 20px 10px; cursor: default; gap: 8px; border-style: dashed;'},
+        uploadSvg.cloneNode(true),
+        el('span', {}, 'Arraste e solte um arquivo .torrent aqui')
+      ),
       el('div', {className: 'form-file-name', id: 'selected-file-name'})
     ),
     el('button', {className: 'form-submit', id: 'submit-torrent'}, 'Adicionar Torrent ', el('span', {className: 'btn-spinner'}))
@@ -162,36 +165,64 @@ function renderAddForm() {
   $('#content').replaceChildren(form);
 
   const magnetInput = $('#input-magnet');
-  const fileInput = $('#input-torrent-file');
-  const fileBtn = $('#btn-select-torrent');
+  const dropzone = $('#dropzone-torrent');
   const fileName = $('#selected-file-name');
   const submitBtn = $('#submit-torrent');
+  let selectedFile = null;
 
-  fileBtn.addEventListener('click', () => fileInput.click());
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, preventDefaults, false);
+  });
 
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) {
-      fileName.textContent = fileInput.files[0].name;
-      magnetInput.value = '';
-      magnetInput.disabled = true;
-    } else {
-      fileName.textContent = '';
-      magnetInput.disabled = false;
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+      dropzone.style.borderColor = 'var(--accent)';
+      dropzone.style.background = 'var(--accent-dim)';
+      dropzone.style.color = 'var(--accent)';
+    }, false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+      dropzone.style.borderColor = '';
+      dropzone.style.background = '';
+      dropzone.style.color = '';
+    }, false);
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.name.toLowerCase().endsWith('.torrent')) {
+        selectedFile = file;
+        fileName.textContent = file.name;
+        magnetInput.value = '';
+        magnetInput.disabled = true;
+      } else {
+        toast('Por favor, arraste um arquivo .torrent válido.', 'error');
+      }
     }
   });
 
   magnetInput.addEventListener('input', () => {
     if (magnetInput.value.trim()) {
-      fileInput.value = '';
+      selectedFile = null;
       fileName.textContent = '';
+    } else {
+       magnetInput.disabled = false;
     }
   });
 
   submitBtn.addEventListener('click', async () => {
     const magnet = magnetInput.value.trim();
-    const file = fileInput.files[0];
+    const file = selectedFile;
 
-    if (!magnet && !file) return toast('Insira um link magnet ou selecione um arquivo', 'error');
+    if (!magnet && !file) return toast('Insira um link magnet ou arraste um arquivo', 'error');
 
     submitBtn.disabled = true;
     submitBtn.classList.add('loading');
@@ -270,7 +301,8 @@ async function handleFileSelection(torrentId) {
   const checkboxes = [];
 
   info.files.forEach(f => {
-    const cb = el('input', {type: 'checkbox', value: String(f.id), style: 'margin-right: 10px; cursor: pointer; flex-shrink: 0;'});
+    // MODIFICADO AQUI: checked: 'checked' adicionado por padrão
+    const cb = el('input', {type: 'checkbox', value: String(f.id), checked: 'checked', style: 'margin-right: 10px; cursor: pointer; flex-shrink: 0;'});
     const li = el('li', {className: 'dl-file-item', style: 'display: flex; align-items: center; padding: 8px 5px; cursor: pointer; border-bottom: 1px solid var(--border-color, #333);'},
       cb,
       el('span', {className: 'dl-file-name', style: 'flex: 1; word-break: break-all; font-size: 13px;'}, f.path.replace(/^\//, '')),
@@ -303,7 +335,7 @@ async function handleFileSelection(torrentId) {
       await apiPost(`/torrents/selectFiles/${torrentId}`, { files: selected.join(',') });
       toast('Arquivos selecionados! Fechando...', 'success');
       browser.runtime.sendMessage('rd-check-now');
-      setTimeout(() => window.close(), 1500); // 1.5s após confirmar, a janela morre!
+      setTimeout(() => window.close(), 1500);
     } catch (err) {
       toast('Falha ao iniciar o download', 'error');
       confirmBtn.disabled = false;
