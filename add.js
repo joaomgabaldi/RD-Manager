@@ -301,8 +301,7 @@ async function handleFileSelection(torrentId) {
   const checkboxes = [];
 
   info.files.forEach(f => {
-    // MODIFICADO AQUI: checked: 'checked' adicionado por padrão
-    const cb = el('input', {type: 'checkbox', value: String(f.id), checked: 'checked', style: 'margin-right: 10px; cursor: pointer; flex-shrink: 0;'});
+    const cb = el('input', {type: 'checkbox', checked: 'checked', value: String(f.id), style: 'margin-right: 10px; cursor: pointer; flex-shrink: 0;'});
     const li = el('li', {className: 'dl-file-item', style: 'display: flex; align-items: center; padding: 8px 5px; cursor: pointer; border-bottom: 1px solid var(--border-color, #333);'},
       cb,
       el('span', {className: 'dl-file-name', style: 'flex: 1; word-break: break-all; font-size: 13px;'}, f.path.replace(/^\//, '')),
@@ -335,7 +334,7 @@ async function handleFileSelection(torrentId) {
       await apiPost(`/torrents/selectFiles/${torrentId}`, { files: selected.join(',') });
       toast('Arquivos selecionados! Fechando...', 'success');
       browser.runtime.sendMessage('rd-check-now');
-      setTimeout(() => window.close(), 1500);
+      setTimeout(() => window.close(), 1500); 
     } catch (err) {
       toast('Falha ao iniciar o download', 'error');
       confirmBtn.disabled = false;
