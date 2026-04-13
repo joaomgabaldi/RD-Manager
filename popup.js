@@ -654,6 +654,20 @@ function fetchWithTimeout(url, options = {}, timeoutMs) {
     .finally(() => clearTimeout(timer));
 }
 
+async function forceLogout(msg = 'Acesso revogado ou expirado. Por favor, reconecte-se.') {
+  hasValidToken = false;
+  stopAutoRefresh();
+  await browser.storage.local.remove([
+    'rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 
+    'rd_oauth_client_secret', 'rd_token_expires_at', 'rd_cached_user', 
+    'rd_cached_downloads', 'rd_oauth_pending'
+  ]);
+  allDownloads = [];
+  closeModal(true);
+  showState('no-api');
+  if (msg) toast(msg, 'error');
+}
+
 async function getValidToken() {
   const data = await browser.storage.local.get(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at']);
   if (!data.rd_access_token) return null;
@@ -672,6 +686,9 @@ async function getValidToken() {
       });
       if (!res.ok) {
         hasValidToken = false;
+        if (res.status === 401 || res.status === 400 || res.status === 403) {
+          forceLogout('Sessão expirada. Reautentique-se.');
+        }
         return null;
       }
       const tokenData = await res.json();
@@ -695,6 +712,10 @@ async function apiGet(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
   if (!token) throw new Error('Unauthenticated');
   const res = await fetchWithTimeout(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
   if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      forceLogout('Acesso revogado ou expirado. Reautentique-se.');
+      throw new Error('Unauthenticated');
+    }
     if (res.status === 404) return null;
     throw new Error(`API error (${res.status})`);
   }
@@ -721,7 +742,13 @@ async function apiPost(path, body, isForm = false, timeoutMs = null) {
     : fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: fetchBody });
 
   const res = await fetchFn;
-  if (!res.ok) throw new Error(`API error (${res.status})`);
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      forceLogout('Acesso revogado ou expirado. Reautentique-se.');
+      throw new Error('Unauthenticated');
+    }
+    throw new Error(`API error (${res.status})`);
+  }
   if (res.status === 204) return null;
   return res.json();
 }
@@ -730,7 +757,13 @@ async function apiDelete(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
   const token = await getValidToken();
   if (!token) throw new Error('Unauthenticated');
   const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
-  if (!res.ok && res.status !== 204) throw new Error(`API error (${res.status})`);
+  if (!res.ok && res.status !== 204) {
+    if (res.status === 401 || res.status === 403) {
+      forceLogout('Acesso revogado ou expirado. Reautentique-se.');
+      throw new Error('Unauthenticated');
+    }
+    throw new Error(`API error (${res.status})`);
+  }
   return null;
 }
 
@@ -842,7 +875,7 @@ async function fetchAll(isBackgroundSync = false) {
 
   } catch (err) {
     if (allDownloads.length === 0) showState('empty');
-    toast('Falha ao buscar downloads', 'error');
+    if (hasValidToken) toast('Falha ao buscar downloads', 'error');
   }
 }
 
@@ -1587,11 +1620,8 @@ function showAuthModal() {
 
     const logoutBtn = $('#btn-logout');
     if (logoutBtn) {
-      logoutBtn.addEventListener('click', async () => {
-        hasValidToken = false;
-        await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at', 'rd_cached_user', 'rd_cached_downloads', 'rd_oauth_pending']);
-        closeModal();
-        showState('no-api');
+      logoutBtn.addEventListener('click', () => {
+        forceLogout('Sessão encerrada com sucesso.');
       });
     }
   });
