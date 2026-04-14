@@ -39,7 +39,7 @@ Instale diretamente pela loja de extensões da Mozilla:
 
 ## 🤝 Créditos
 
-Este projeto foi inspirado na extensão [Real-Debrid Lite](https://chromewebstore.google.com/detail/real-debrid-lite-%E2%80%93-downlo/jhiocmjcclljkmmadpcaffanijehfpco) do Chrome. Agradeço aos desenvolvedores originais pela base conceitual.
+Este projeto foi baseado na extensão [Real-Debrid Lite](https://chromewebstore.google.com/detail/real-debrid-lite-%E2%80%93-downlo/jhiocmjcclljkmmadpcaffanijehfpco) do Chrome. Agradeço aos desenvolvedores originais.
 
 ## 📄 Licença
 
