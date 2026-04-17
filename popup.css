@@ -120,7 +120,7 @@ html {
 }
 
 body {
-  width: 420px;
+  width: 430px;
   min-height: 400px;
   max-height: 550px;
   font-family: var(--font-main);
@@ -558,7 +558,7 @@ body {
 #downloads-container {
   flex: 1;
   overflow-y: scroll;
-  padding: 8px 9px 12px 14px;
+  padding: 8px 14px 12px 14px;
 }
 
 #downloads-container::-webkit-scrollbar {
