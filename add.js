@@ -21,6 +21,30 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderAddForm();
 });
 
+function initFixedTooltips() {
+  document.querySelectorAll('.info-icon').forEach(icon => {
+    const tip = icon.querySelector('.info-tooltip');
+    if (!tip) return;
+    icon.addEventListener('mouseenter', () => {
+      const iconRect = icon.getBoundingClientRect();
+      const bodyRect = document.body.getBoundingClientRect();
+      tip.style.position = 'fixed';
+      tip.style.visibility = 'hidden';
+      tip.classList.add('visible');
+      const tipWidth = tip.offsetWidth;
+      tip.style.visibility = '';
+      tip.style.left = `${bodyRect.left + (bodyRect.width - tipWidth) / 2}px`;
+      tip.style.top = `${iconRect.bottom + 6}px`;
+    });
+    icon.addEventListener('mouseleave', () => {
+      tip.classList.remove('visible');
+      tip.style.position = '';
+      tip.style.left = '';
+      tip.style.top = '';
+    });
+  });
+}
+
 function renderAddForm() {
   const infoIconSvg = makeSvg([['circle',{cx:'12',cy:'12',r:'10'}],['line',{x1:'12',y1:'16',x2:'12',y2:'12'}],['line',{x1:'12',y1:'8',x2:'12.01',y2:'8'}]]);
   const btnSvg = makeSvg([['path',{d:'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'}],['polyline',{points:'14 2 14 8 20 8'}]]);
@@ -45,6 +69,8 @@ function renderAddForm() {
   );
 
   $('#content').replaceChildren(form);
+  
+  initFixedTooltips();
 
   const magnetInput = $('#input-magnet');
   const fileInput = $('#input-torrent-file');
