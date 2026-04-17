@@ -2,6 +2,16 @@ export const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
 export const TIMEOUT_DEFAULT_MS = 10_000;
 
+let authFailureCallback = null;
+
+export function onAuthFailure(cb) {
+  authFailureCallback = cb;
+}
+
+function triggerAuthFailure() {
+  if (authFailureCallback) authFailureCallback();
+}
+
 export function fetchWithTimeout(url, options = {}, timeoutMs = TIMEOUT_DEFAULT_MS) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -28,6 +38,7 @@ export async function getValidToken() {
       if (!res.ok) {
         if (res.status === 401 || res.status === 403 || res.status === 400) {
           await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
+          triggerAuthFailure();
         }
         return null;
       }
@@ -48,11 +59,12 @@ export async function getValidToken() {
 
 export async function apiGet(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
   const token = await getValidToken();
-  if (!token) throw new Error('Unauthenticated');
+  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
   const res = await fetchWithTimeout(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
       await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
+      triggerAuthFailure();
       throw new Error('Unauthenticated');
     }
     if (res.status === 404) return null;
@@ -65,7 +77,7 @@ export async function apiGet(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
 
 export async function apiPost(path, body, isForm = false, timeoutMs = null) {
   const token = await getValidToken();
-  if (!token) throw new Error('Unauthenticated');
+  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
   const headers = { Authorization: `Bearer ${token}` };
   let fetchBody;
 
@@ -83,6 +95,30 @@ export async function apiPost(path, body, isForm = false, timeoutMs = null) {
   if (!res.ok) {
     if (res.status === 401 || res.status === 403) {
       await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
+      triggerAuthFailure();
+      throw new Error('Unauthenticated');
+    }
+    throw new Error(`API error (${res.status})`);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+export async function apiPut(path, body, contentType = null, timeoutMs = null) {
+  const token = await getValidToken();
+  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
+  const headers = { Authorization: `Bearer ${token}` };
+  if (contentType) headers['Content-Type'] = contentType;
+  
+  const fetchFn = timeoutMs
+    ? fetchWithTimeout(`${API_BASE}${path}`, { method: 'PUT', headers, body }, timeoutMs)
+    : fetch(`${API_BASE}${path}`, { method: 'PUT', headers, body });
+
+  const res = await fetchFn;
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
+      triggerAuthFailure();
       throw new Error('Unauthenticated');
     }
     throw new Error(`API error (${res.status})`);
@@ -93,11 +129,12 @@ export async function apiPost(path, body, isForm = false, timeoutMs = null) {
 
 export async function apiDelete(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
   const token = await getValidToken();
-  if (!token) throw new Error('Unauthenticated');
+  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
   const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
   if (!res.ok && res.status !== 204) {
     if (res.status === 401 || res.status === 403) {
       await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
+      triggerAuthFailure();
       throw new Error('Unauthenticated');
     }
     throw new Error(`API error (${res.status})`);
