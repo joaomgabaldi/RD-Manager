@@ -1,4 +1,4 @@
-import { getValidToken, apiGet, apiPost, apiPut, trackId } from './api.js';
+import { getValidToken, apiGet, apiPost, apiPut, trackId, onAuthFailure } from './api.js';
 
 const i18n = (key) => browser.i18n.getMessage(key) || key;
 
@@ -67,6 +67,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   localizeHtmlPage();
   const { rd_theme } = await browser.storage.local.get('rd_theme');
   document.documentElement.setAttribute('data-theme', rd_theme || 'dark');
+
+  onAuthFailure(() => {
+    $('#content').replaceChildren(el('div', {className: 'state-message'}, i18n('accessRevoked')));
+    setTimeout(() => window.close(), 2500);
+  });
 
   const token = await getValidToken();
   if (!token) {
@@ -159,7 +164,7 @@ function renderAddForm() {
         await handleFileSelection(torrentId);
       }
     } catch (err) {
-      if (err.message === 'Unauthenticated') return; // Será tratado silenciosamente ou a UI fechará
+      if (err.message === 'Unauthenticated') return;
       toast(i18n('failedAdd'), 'error');
       submitBtn.disabled = false;
       submitBtn.classList.remove('loading');
