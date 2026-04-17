@@ -1,4 +1,4 @@
-import { API_BASE, getValidToken, apiGet, trackId, fetchWithTimeout } from './api.js';
+import { getValidToken, apiGet, apiPost, apiPut, apiDelete, trackId } from './api.js';
 
 const ALARM_NAME = 'rd-completion-check';
 const POLL_INTERVAL_MINUTES = 1;
@@ -52,15 +52,9 @@ browser.runtime.onMessage.addListener((msg) => {
 });
 
 async function deleteTorrentsSequentially(ids) {
-  const token = await getValidToken();
-  if (!token) return;
-
   for (const id of ids) {
     try {
-      await fetchWithTimeout(`${API_BASE}/torrents/delete/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await apiDelete(`/torrents/delete/${id}`);
     } catch (_) { /* best effort */ }
   }
 }
@@ -142,11 +136,11 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
 
   let workFn;
   if (url.startsWith('magnet:')) {
-    workFn = () => addMagnet(token, url);
+    workFn = () => addMagnet(url);
   } else if (url.endsWith('.torrent') || url.includes('.torrent?')) {
-    workFn = () => addTorrentFile(token, url);
+    workFn = () => addTorrentFile(url);
   } else {
-    workFn = () => unrestrictLink(token, url);
+    workFn = () => unrestrictLink(url);
   }
 
   try {
@@ -159,49 +153,22 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-async function addMagnet(token, magnet) {
-  const res = await fetch(`${API_BASE}/torrents/addMagnet`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `magnet=${encodeURIComponent(magnet)}`
-  });
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
-    throw new Error(`API error (${res.status})`);
-  }
-  const data = await res.json();
-  if (data.id) await trackId(String(data.id));
+async function addMagnet(magnet) {
+  const data = await apiPost('/torrents/addMagnet', { magnet });
+  if (data && data.id) await trackId(String(data.id));
 }
 
-async function addTorrentFile(token, url) {
+async function addTorrentFile(url) {
   const fileRes = await fetch(url);
   if (!fileRes.ok) throw new Error('Failed to fetch .torrent file');
   const blob = await fileRes.blob();
-  const res = await fetch(`${API_BASE}/torrents/addTorrent`, {
-    method: 'PUT',
-    headers: { Authorization: `Bearer ${token}` },
-    body: blob
-  });
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
-    throw new Error(`API error (${res.status})`);
-  }
-  const data = await res.json();
-  if (data.id) await trackId(String(data.id));
+  const data = await apiPut('/torrents/addTorrent', blob);
+  if (data && data.id) await trackId(String(data.id));
 }
 
-async function unrestrictLink(token, link) {
-  const res = await fetch(`${API_BASE}/unrestrict/link`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `link=${encodeURIComponent(link)}`
-  });
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
-    throw new Error(`API error (${res.status})`);
-  }
-  const data = await res.json();
-  if (data.download) {
+async function unrestrictLink(link) {
+  const data = await apiPost('/unrestrict/link', { link });
+  if (data && data.download) {
     const entry = {
       id: data.id || `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: data.filename || 'Download sem nome',
