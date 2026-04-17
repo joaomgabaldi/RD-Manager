@@ -1,8 +1,16 @@
-import { getValidToken, apiGet, apiPost, apiPut, apiDelete, trackId } from './api.js';
+import { getValidToken, apiGet, apiPost, apiPut, apiDelete, trackId, onAuthFailure } from './api.js';
 
 const ALARM_NAME = 'rd-completion-check';
 const POLL_INTERVAL_MINUTES = 1;
 const DEFAULT_BADGE_COLOR = '#1a9c4a';
+
+// Interceta falhas de autenticação em background e notifica a UI
+onAuthFailure(() => {
+  console.warn('RD Manager: Falha de autenticação detetada em background.');
+  browser.runtime.sendMessage({ action: 'force_logout' }).catch(() => {
+    // Ignora o erro se o popup não estiver aberto para receber a mensagem
+  });
+});
 
 browser.runtime.onInstalled.addListener(async () => {
   scheduleAlarm();
