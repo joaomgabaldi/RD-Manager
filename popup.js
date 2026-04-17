@@ -1,7 +1,6 @@
-const API_BASE = 'https://api.real-debrid.com/rest/1.0';
-const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
-const OPENSOURCE_CLIENT_ID = 'X245A4XAIBGVM';
+import { API_BASE, OAUTH_BASE, getValidToken, apiGet, apiPost, apiDelete, trackId } from './api.js';
 
+const OPENSOURCE_CLIENT_ID = 'X245A4XAIBGVM';
 const i18n = (key) => browser.i18n.getMessage(key) || key;
 
 function localizeHtmlPage() {
@@ -125,7 +124,17 @@ async function loadCachedData() {
 }
 
 function cacheData(downloads) {
-  browser.storage.local.set({ rd_cached_downloads: downloads });
+  const thirtyDaysAgo = Date.now() - (30 * 86400000);
+  let cleaned = downloads.filter(d => {
+    if (isCompleted(d) && d.created_at) {
+      return new Date(d.created_at).getTime() > thirtyDaysAgo;
+    }
+    return true;
+  });
+  if (cleaned.length > 1000) {
+    cleaned = cleaned.slice(0, 1000);
+  }
+  browser.storage.local.set({ rd_cached_downloads: cleaned });
 }
 
 function refreshInBackground() {
@@ -160,7 +169,6 @@ function stopAutoRefresh() {
 
 function scheduleNextRefresh() {
   let delay = Math.min(MAX_REFRESH_MS, BASE_REFRESH_MS * Math.pow(1.5, refreshDecayCount));
-  
   if (allDownloads.some(d => d.download_state === 'processing' || d.download_state === 'waiting_selection')) {
     delay = Math.min(delay, 5000);
   }
@@ -208,13 +216,6 @@ async function loadSettings() {
 
 function saveTheme(theme) {
   browser.storage.local.set({ rd_theme: theme });
-}
-
-async function trackId(id) {
-  const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
-  const tracked = new Set(rd_tracked_ids || []);
-  tracked.add(String(id));
-  await browser.storage.local.set({ rd_tracked_ids: [...tracked] });
 }
 
 let deleteAllHoldTimer = null;
@@ -447,19 +448,21 @@ async function preloadTorrentFiles() {
   if (needsInfo.length === 0) return;
   let changed = false;
 
-  for (const dl of needsInfo) {
-    try {
-      const info = await apiGet(`/torrents/info/${dl.id}`);
-      if (info) {
-        const parsed = parseTorrentInfo(info);
-        dl.links = parsed.links;
-        dl.files = parsed.files;
-        changed = true;
-      }
-      await new Promise(resolve => setTimeout(resolve, 250));
-    } catch (err) {
-      if (err.message && err.message.includes('429')) break;
-    }
+  const BATCH_SIZE = 3;
+  for (let i = 0; i < needsInfo.length; i += BATCH_SIZE) {
+    const batch = needsInfo.slice(i, i + BATCH_SIZE);
+    await Promise.allSettled(batch.map(async (dl) => {
+      try {
+        const info = await apiGet(`/torrents/info/${dl.id}`);
+        if (info) {
+          const parsed = parseTorrentInfo(info);
+          dl.links = parsed.links;
+          dl.files = parsed.files;
+          changed = true;
+        }
+      } catch (err) {}
+    }));
+    await new Promise(resolve => setTimeout(resolve, 200));
   }
 
   if (changed) {
@@ -575,7 +578,7 @@ async function downloadFile(type, id) {
       }
 
       if (links.length > 0) {
-        const unrestricted = await apiPost('/unrestrict/link', { link: links[0] }, false, TIMEOUT_DOWNLOAD_MS);
+        const unrestricted = await apiPost('/unrestrict/link', { link: links[0] }, false, 10000);
         if (unrestricted?.download) triggerDownload(unrestricted.download, dl.name);
         else toast(i18n('failedDlLink'), 'error');
       } else {
@@ -632,16 +635,6 @@ async function triggerDownload(url, filename = '') {
   document.body.removeChild(a);
 }
 
-const TIMEOUT_DEFAULT_MS  = 10_000;
-const TIMEOUT_DOWNLOAD_MS = 10_000;
-
-function fetchWithTimeout(url, options = {}, timeoutMs) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(timer));
-}
-
 async function forceLogout(msg = null) {
   if (!msg) msg = i18n('accessRevoked');
   hasValidToken = false;
@@ -664,105 +657,6 @@ async function forceLogout(msg = null) {
   if (msg) toast(msg, 'error');
 }
 
-async function getValidToken() {
-  const data = await browser.storage.local.get(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at']);
-  if (!data.rd_access_token) return null;
-
-  if (Date.now() > data.rd_token_expires_at - 60000) {
-    try {
-      const res = await fetch(`${OAUTH_BASE}/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: data.rd_oauth_client_id,
-          client_secret: data.rd_oauth_client_secret,
-          code: data.rd_refresh_token,
-          grant_type: 'http://oauth.net/grant_type/device/1.0'
-        }).toString()
-      });
-      if (!res.ok) {
-        hasValidToken = false;
-        if (res.status === 401 || res.status === 400 || res.status === 403) {
-          forceLogout(i18n('sessionExpired'));
-        }
-        return null;
-      }
-      const tokenData = await res.json();
-      const newExpiry = Date.now() + (tokenData.expires_in * 1000);
-      await browser.storage.local.set({
-        rd_access_token: tokenData.access_token,
-        rd_refresh_token: tokenData.refresh_token,
-        rd_token_expires_at: newExpiry
-      });
-      hasValidToken = true;
-      return tokenData.access_token;
-    } catch (_) {
-      return null;
-    }
-  }
-  return data.rd_access_token;
-}
-
-async function apiGet(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
-  const token = await getValidToken();
-  if (!token) throw new Error('Unauthenticated');
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      forceLogout();
-      throw new Error('Unauthenticated');
-    }
-    if (res.status === 404) return null;
-    throw new Error(`API error (${res.status})`);
-  }
-  if (res.status === 204) return null;
-  const text = await res.text();
-  if (!text) return null;
-  return JSON.parse(text);
-}
-
-async function apiPost(path, body, isForm = false, timeoutMs = null) {
-  const token = await getValidToken();
-  if (!token) throw new Error('Unauthenticated');
-  const headers = { Authorization: `Bearer ${token}` };
-  let fetchBody;
-
-  if (isForm) fetchBody = body;
-  else {
-    headers['Content-Type'] = 'application/x-www-form-urlencoded';
-    fetchBody = new URLSearchParams(body).toString();
-  }
-
-  const fetchFn = timeoutMs
-    ? fetchWithTimeout(`${API_BASE}${path}`, { method: 'POST', headers, body: fetchBody }, timeoutMs)
-    : fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: fetchBody });
-
-  const res = await fetchFn;
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      forceLogout();
-      throw new Error('Unauthenticated');
-    }
-    throw new Error(`API error (${res.status})`);
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-async function apiDelete(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
-  const token = await getValidToken();
-  if (!token) throw new Error('Unauthenticated');
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
-  if (!res.ok && res.status !== 204) {
-    if (res.status === 401 || res.status === 403) {
-      forceLogout();
-      throw new Error('Unauthenticated');
-    }
-    throw new Error(`API error (${res.status})`);
-  }
-  return null;
-}
-
 async function fetchAll(isBackgroundSync = false) {
   const token = await getValidToken();
   if (!token) return showState('no-api');
@@ -774,12 +668,25 @@ async function fetchAll(isBackgroundSync = false) {
       let page = 1;
       const limit = 100;
       let hasMore = true;
+      let latestCachedDate = 0;
+      
+      if (isBackgroundSync && allDownloads.length > 0) {
+        latestCachedDate = new Date(allDownloads[0].created_at || 0).getTime();
+      }
+
       while (hasMore) {
         const res = await apiGet(`/torrents?limit=${limit}&page=${page}`);
         if (Array.isArray(res) && res.length > 0) {
           torrentsRes.push(...res);
-          if (res.length < limit || isBackgroundSync) hasMore = false;
-          else page++;
+          if (res.length < limit) {
+            hasMore = false;
+          } else if (isBackgroundSync) {
+            const oldestInPage = new Date(res[res.length - 1].added).getTime();
+            if (oldestInPage <= latestCachedDate) hasMore = false;
+            else page++;
+          } else {
+            page++;
+          }
         } else {
           hasMore = false; 
         }
@@ -793,6 +700,7 @@ async function fetchAll(isBackgroundSync = false) {
       torrentsRes.forEach(t => freshData.set(String(t.id), normalizeTorrent(t)));
 
       allDownloads = allDownloads.map(dl => {
+        if (currentlyLockedTorrentId === String(dl.id)) return dl; // Mutex
         if (freshData.has(String(dl.id))) {
           const updated = freshData.get(String(dl.id));
           updated.files = dl.files;
@@ -966,9 +874,7 @@ async function fetchUserInfo() {
       showUserBar(res);
       browser.storage.local.set({ rd_cached_user: res });
     }
-  } catch (err) {
-    console.error('Falha ao buscar informações do usuário');
-  }
+  } catch (err) {}
 }
 
 function showState(state) {
@@ -1407,7 +1313,7 @@ function getStatusClass(status) {
   if (status === i18n('statusDownloading') || status === i18n('statusUploading') || status === i18n('statusProcessing')) return 'downloading';
   if (status === i18n('statusQueued') || status === i18n('statusWaiting')) return 'queued';
   if (status === i18n('statusError')) return 'error';
-  return 'downloading';
+  return 'unknown';
 }
 
 function openModalWithNode(title, bodyNode, locked = false) {
