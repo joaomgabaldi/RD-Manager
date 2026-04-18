@@ -784,11 +784,11 @@ function normalizeTorrent(t) {
 
 function normalizeRdTimestamp(ts) {
   if (!ts) return null;
-  let d = new Date(ts);
-  if (!isNaN(d)) return d.toISOString();
   let s = ts.trim().replace(' ', 'T');
-  if (!s.endsWith('Z')) s += 'Z';
-  d = new Date(s);
+  if (!s.endsWith('Z') && !s.match(/[+-]\d{2}:?\d{2}$/)) {
+    s += 'Z';
+  }
+  let d = new Date(s);
   if (!isNaN(d)) return d.toISOString();
   return null;
 }
@@ -1815,7 +1815,9 @@ function formatTimeAgo(dateStr) {
   const date = new Date(dateStr);
   if (isNaN(date)) return null;
 
-  const diffMs = Math.abs(Date.now() - date.getTime());
+  const diffMs = Date.now() - date.getTime();
+  if (diffMs <= 0) return i18n('justNow');
+
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
