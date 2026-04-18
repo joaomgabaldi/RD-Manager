@@ -31,7 +31,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   onAuthFailure(() => forceLogout());
   
-  // Escutar eventos de falha de autenticação emitidos pelo background.js
   browser.runtime.onMessage.addListener((msg) => {
     if (msg && msg.action === 'force_logout') {
       forceLogout();
@@ -785,11 +784,28 @@ function normalizeTorrent(t) {
 function normalizeRdTimestamp(ts) {
   if (!ts) return null;
   let s = ts.trim().replace(' ', 'T');
-  if (!s.endsWith('Z') && !s.match(/[+-]\d{2}:?\d{2}$/)) {
-    s += 'Z';
+  
+  if (s.endsWith('Z') || s.match(/[+-]\d{2}:?\d{2}$/)) {
+    let d = new Date(s);
+    if (!isNaN(d)) return d.toISOString();
+    return null;
   }
-  let d = new Date(s);
-  if (!isNaN(d)) return d.toISOString();
+  
+  let tempDate = new Date(s + 'Z'); 
+  if (isNaN(tempDate)) return null;
+  
+  const year = tempDate.getUTCFullYear();
+  const march = new Date(Date.UTC(year, 2, 31));
+  const dstStart = new Date(Date.UTC(year, 2, 31 - march.getUTCDay(), 1));
+  const october = new Date(Date.UTC(year, 9, 31));
+  const dstEnd = new Date(Date.UTC(year, 9, 31 - october.getUTCDay(), 1));
+  
+  const isDST = tempDate >= dstStart && tempDate < dstEnd;
+  const offset = isDST ? '+02:00' : '+01:00';
+  
+  let finalDate = new Date(s + offset);
+  if (!isNaN(finalDate)) return finalDate.toISOString();
+  
   return null;
 }
 
