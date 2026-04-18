@@ -1,0 +1,44 @@
+name: Build and Release Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Nova versão da extensão (ex: 1.0.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update manifest.json version
+        run: |
+          jq '.version = "${{ github.event.inputs.version }}"' manifest.json > manifest_tmp.json && mv manifest_tmp.json manifest.json
+
+      - name: Commit and Push updated manifest
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -am "chore: atualiza versão do manifest para ${{ github.event.inputs.version }}" || echo "Nenhuma mudança no manifest"
+          git push
+
+      - name: Create ZIP archive
+        run: |
+          zip -r release-${{ github.event.inputs.version }}.zip . -x "README.md" -x ".git/*" -x ".github/*"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          files: release-${{ github.event.inputs.version }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
