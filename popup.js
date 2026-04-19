@@ -1842,10 +1842,10 @@ function formatTimeAgo(dateStr) {
   const diffDays = Math.floor(diffMs / 86400000);
 
   if (diffMins < 1) return i18n('justNow');
-  if (diffHours < 1) return `${i18n('agoDays')} ${diffMins}m`;
-  if (diffDays < 1) return `${i18n('agoDays')} ${diffHours}h`;
-  if (diffDays === 1) return `${i18n('agoDays')} 1d`;
-  return `${i18n('agoDays')} ${diffDays}d`;
+  if (diffHours < 1) return i18n('agoDays', `${diffMins}m`);
+  if (diffDays < 1) return i18n('agoDays', `${diffHours}h`);
+  if (diffDays === 1) return i18n('agoDays', '1d');
+  return i18n('agoDays', `${diffDays}d`);
 }
 
 function capitalize(str) {
