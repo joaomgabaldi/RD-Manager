@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function initFixedTooltips() {
-  document.querySelectorAll('.info-icon').forEach(icon => {
+  document.querySelectorAll('.info-icon:not(.tooltip-inited)').forEach(icon => {
+    icon.classList.add('tooltip-inited');
     const tip = icon.querySelector('.info-tooltip');
     if (!tip) return;
     icon.addEventListener('mouseenter', () => {
