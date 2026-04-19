@@ -13,7 +13,7 @@
   "moreThan1Day": { "message": "Mais de 1 dia" },
   "moreThan1Week": { "message": "Mais de 1 semana" },
   "moreThan1Month": { "message": "Mais de 1 mês" },
-  "clearFilter": { "message": "Limpar filtro" },
+  "clearFilter": { "message": "Limpiar filtro" },
   "tabAll": { "message": "Todos" },
   "tabActive": { "message": "Ativos" },
   "tabCompleted": { "message": "Concluídos" },
@@ -104,7 +104,14 @@
   "failedUnlock": { "message": "Falha ao desbloquear o link" },
   "resultsLabel": { "message": "resultados" },
   "justNow": { "message": "agora mesmo" },
-  "agoDays": { "message": "há" },
+  "agoDays": { 
+    "message": "há $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
   "dlAvailable": { "message": "Download Disponível" },
   "dlCompletedMsg": { "message": "Um download foi concluído" },
   "noNotifications": { "message": "Nenhuma notificação" },
