@@ -5,8 +5,8 @@
   "settings": { "message": "Configuración" },
   "toggleTheme": { "message": "Alternar tema" },
   "notifications": { "message": "Notificaciones" },
-  "addTorrent": { "message": "Añadir Torrent" },
-  "unlockLink": { "message": "Desbloquear Enlace" },
+  "addTorrent": { "message": "Añadir torrent" },
+  "unlockLink": { "message": "Desbloquear enlace" },
   "refresh": { "message": "Actualizar" },
   "searchPlaceholder": { "message": "Buscar descargas..." },
   "olderThan": { "message": "Más antiguo que..." },
@@ -56,7 +56,7 @@
   "statusUnknown": { "message": "desconocido" },
   "fileInfoMissing": { "message": "No hay información de archivo disponible" },
   "filesAvailableLater": { "message": "Los archivos estarán disponibles cuando se complete la descarga" },
-  "selectFiles": { "message": "Seleccionar Archivos" },
+  "selectFiles": { "message": "Seleccionar archivos" },
   "download": { "message": "Descargar" },
   "delete": { "message": "Eliminar" },
   "contextMenuLabel": { "message": "Menú contextual de clic derecho" },
@@ -78,14 +78,14 @@
   "finishingLogin": { "message": "Finalizando inicio de sesión..." },
   "loginComplete": { "message": "¡Inicio de sesión completado!" },
   "failedToken": { "message": "Error al intercambiar el token." },
-  "cancelTorrent": { "message": "Cancelar Torrent" },
+  "cancelTorrent": { "message": "Cancelar torrent" },
   "waitingMagnet": { "message": "Esperando conversión del magnet..." },
   "torrentCanceled": { "message": "Torrent cancelado" },
   "errorRemove": { "message": "Error al eliminar" },
   "errorGetFiles": { "message": "Error al obtener archivos del torrent" },
   "noFilesFound": { "message": "No se encontraron archivos para la selección" },
   "selectAll": { "message": "Seleccionar Todo / Invertir" },
-  "startDownload": { "message": "Iniciar Descarga" },
+  "startDownload": { "message": "Iniciar descarga" },
   "selectAtLeastOne": { "message": "Selecciona al menos un archivo" },
   "starting": { "message": "Iniciando..." },
   "filesSelected": { "message": "¡Archivos seleccionados!" },
@@ -104,7 +104,14 @@
   "failedUnlock": { "message": "Error al desbloquear el enlace" },
   "resultsLabel": { "message": "resultados" },
   "justNow": { "message": "ahora mismo" },
-  "agoDays": { "message": "hace" },
+  "agoDays": { 
+    "message": "hace $TIME$",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
   "dlAvailable": { "message": "Descarga Disponible" },
   "dlCompletedMsg": { "message": "Se ha completado una descarga" },
   "noNotifications": { "message": "No hay notificaciones" },
