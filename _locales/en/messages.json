@@ -48,7 +48,7 @@
   "noDaysRemaining": { "message": "— days remaining" },
   "statusError": { "message": "error" },
   "statusProcessing": { "message": "processing" },
-  "statusWaiting": { "message": "waiting selection" },
+  "statusWaiting": { "message": "waiting for selection" },
   "statusQueued": { "message": "queued" },
   "statusDownloading": { "message": "downloading" },
   "statusCompleted": { "message": "completed" },
@@ -94,7 +94,7 @@
   "urlLabel": { "message": "URL" },
   "urlTooltip": { "message": "Paste hoster links to unrestrict them." },
   "supportedHosters": { "message": "Supported hosters" },
-  "unlock": { "message": "Unlock " },
+  "unlock": { "message": "Unlock" },
   "unlocking": { "message": "Unlocking..." },
   "insertValidUrl": { "message": "Insert at least one valid URL" },
   "linksUnlocked": { "message": "links unlocked!" },
@@ -104,7 +104,14 @@
   "failedUnlock": { "message": "Failed to unlock link" },
   "resultsLabel": { "message": "results" },
   "justNow": { "message": "just now" },
-  "agoDays": { "message": "ago" },
+  "agoDays": { 
+    "message": "$TIME$ ago",
+    "placeholders": {
+      "time": {
+        "content": "$1"
+      }
+    }
+  },
   "dlAvailable": { "message": "Download Available" },
   "dlCompletedMsg": { "message": "A download has completed" },
   "noNotifications": { "message": "No notifications" },
@@ -127,5 +134,4 @@
   "predicted": { "message": "Predicted" },
   "noPrediction": { "message": "No prediction" },
   "fetchingDownloadsFailed": { "message": "Failed to fetch downloads" }
-}
 }
