@@ -95,33 +95,37 @@ function renderAddForm() {
     try {
       if (file && (file.name.toLowerCase().endsWith('.dlc') || file.name.toLowerCase().endsWith('.rsdf') || file.name.toLowerCase().endsWith('.ccf'))) {
         
-        const ext = file.name.split('.').pop().toLowerCase();
-        // Extrai o conteúdo como texto puro, conforme exigido pela API ayra
-        const payload = await file.text();
-        
         try {
-          const response = await fetch(`https://cable.ayra.ch/decrypt/decrypt.php?mode=${ext}`, {
-            method: 'POST',
-            body: payload
-          });
-
-          if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+          const responseData = await apiPut('/unrestrict/containerFile', file);
           
-          const data = await response.json();
+          let extractedLinks = [];
+          if (Array.isArray(responseData)) {
+            extractedLinks = responseData;
+          } else if (responseData && Array.isArray(responseData.links)) {
+            extractedLinks = responseData.links;
+          } else if (responseData && typeof responseData === 'object') {
+            extractedLinks = Object.values(responseData);
+          } else if (typeof responseData === 'string') {
+            extractedLinks = [responseData];
+          }
 
-          if (!data.success || !data.data || data.data.length === 0) {
-            toast(data.message || 'Falha ao descriptografar no serviço externo.', 'error');
+          // Filtro agressivo para isolar apenas strings válidas de URLs HTTP. 
+          // Remove arrays em branco, quebras de linha isoladas e metadados falhos.
+          const validLinks = extractedLinks.filter(link => typeof link === 'string' && link.trim().startsWith('http'));
+
+          if (validLinks.length === 0) {
+            toast('Falha: A API não conseguiu extrair as chaves deste arquivo.', 'error');
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
             submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
             return;
           }
 
-          renderDecodedLinks(data.data);
+          renderDecodedLinks(validLinks);
           return;
         } catch (err) {
-          console.warn('RD Manager: Falha na API Ayra', err);
-          toast('Erro de rede ao contatar o serviço de descriptografia.', 'error');
+          console.warn('RD Manager: Falha ao descriptografar na API pública', err);
+          toast('Falha técnica ao contatar a API de descriptografia.', 'error');
           submitBtn.disabled = false;
           submitBtn.classList.remove('loading');
           submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
