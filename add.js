@@ -187,19 +187,18 @@ function renderDecodedLinks(links) {
 
   const copyBtn = el('button', {
     className: 'form-submit',
-    style: 'width: 100%; justify-content: center; background: #5AD58A; color: #000; font-weight: 700; border: none; font-size: 13px;'
+    style: 'width: 100%; justify-content: center; background: #5AD58A; color: #000; border: none;'
   }, i18n('copyAllLinks'));
 
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(links.join('\n')).then(() => {
       toast(i18n('copySuccess'), 'success');
-      setTimeout(() => window.close(), 1500);
     });
   });
 
   const jdBtn = el('button', {
     className: 'form-submit',
-    style: 'width: 100%; justify-content: center; background: #5AD58A; color: #000; font-weight: 700; border: none; font-size: 13px;'
+    style: 'width: 100%; justify-content: center; background: #5AD58A; color: #000; border: none;'
   }, i18n('exportJd2'));
 
   jdBtn.addEventListener('click', async () => {
@@ -215,11 +214,10 @@ function renderDecodedLinks(links) {
 
       await fetch(jdUrl, { mode: 'no-cors' });
       toast(i18n('addedToJd'), 'success');
-      // Adicionado atraso para permitir que a notificação apareça antes da janela fechar
-      setTimeout(() => window.close(), 1500); 
     } catch (err) {
       console.warn('RD Manager: Erro ao enviar para JD', err);
       toast(i18n('jdUnresponsive'), 'error');
+    } finally {
       jdBtn.disabled = false;
       jdBtn.style.opacity = '1';
     }
