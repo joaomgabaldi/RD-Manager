@@ -57,7 +57,7 @@ export async function getValidToken() {
 
       return await refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret)
         .catch(err => {
-          console.warn('RD Manager: Falha temporária ao atualizar token (rede/servidor).', err);
+          console.warn('RD Manager: Falha temporária ao atualizar token.', err);
           return null; 
         });
     });
@@ -170,7 +170,10 @@ export async function apiPut(endpoint, blobData, contentType = null) {
   if (!token) throw new Error('Unauthenticated');
 
   const headers = { 'Authorization': `Bearer ${token}` };
-  if (contentType) {
+  
+  // CORREÇÃO: Só define o cabeçalho se NÃO for FormData. 
+  // FormData precisa que o browser defina o cabeçalho com o boundary correto.
+  if (contentType && !(blobData instanceof FormData)) {
     headers['Content-Type'] = contentType;
   }
 
