@@ -3,7 +3,6 @@ export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
 export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM';
 
 const authFailureCallbacks = new Set();
-let refreshPromise = null;
 let trackQueue = Promise.resolve();
 
 export function onAuthFailure(cb) {
@@ -33,18 +32,20 @@ export async function getValidToken() {
       return null;
     }
     
-    if (refreshPromise) {
-      return refreshPromise.catch(() => null);
-    }
-    
-    refreshPromise = refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret)
-      .catch(err => {
-        console.warn('RD Manager: Falha temporária ao atualizar token (rede/servidor).', err);
-        return null; 
-      })
-      .finally(() => { refreshPromise = null; });
-      
-    return refreshPromise;
+    // Web Locks API: Garante que apenas 1 processo (popup ou background) faça o refresh por vez
+    return await navigator.locks.request('rd_token_refresh', async () => {
+      // Double-check pattern: verifica se a outra thread já atualizou o token enquanto esperávamos pelo lock
+      const freshData = await browser.storage.local.get(['rd_access_token', 'rd_token_expires_at']);
+      if (freshData.rd_access_token && Date.now() < (freshData.rd_token_expires_at - bufferMs)) {
+        return freshData.rd_access_token;
+      }
+
+      return await refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret)
+        .catch(err => {
+          console.warn('RD Manager: Falha temporária ao atualizar token (rede/servidor).', err);
+          return null; 
+        });
+    });
   }
   return data.rd_access_token;
 }
@@ -186,6 +187,12 @@ export function trackId(id) {
     const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
     const set = new Set(rd_tracked_ids || []);
     set.add(id);
+    
+    // Limite FIFO (Impede a fila de rastreamento de crescer infinitamente)
+    while (set.size > 100) {
+      set.delete(set.values().next().value); // Remove o mais antigo (primeiro inserido)
+    }
+    
     await browser.storage.local.set({ rd_tracked_ids: [...set] });
   });
 
