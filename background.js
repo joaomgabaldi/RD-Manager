@@ -61,7 +61,9 @@ async function deleteTorrentsSequentially(ids) {
   for (const id of ids) {
     try {
       await apiDelete(`/torrents/delete/${id}`);
-    } catch (_) { }
+    } catch (err) {
+      console.warn(`RD Manager: Falha silenciosa ao deletar torrent ${id} em background:`, err);
+    }
   }
 }
 
