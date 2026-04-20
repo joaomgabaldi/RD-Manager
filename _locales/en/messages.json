@@ -136,7 +136,6 @@
   "addedAt": { "message": "added" },
   "noPrediction": { "message": "No prediction" },
   "fetchingDownloadsFailed": { "message": "Failed to fetch downloads" },
-  "verifyingAuth": { "message": "Verifying authorization..." },
   "multipleLinksExpand": { "message": "Multiple files detected. Expand the item to choose what to download." },
   "magnetTooltip": { "message": "Paste a magnet link or select a .torrent file below." },
   "timeRemaining": { "message": "remaining (predicted)" },
