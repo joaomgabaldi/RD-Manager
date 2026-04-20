@@ -23,6 +23,21 @@ function handleUnauth(res) {
   }
 }
 
+async function fetchWithRateLimitRetry(url, options, maxRetries = 3, baseDelayMs = 1000) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options);
+    if (res.status === 429 && attempt < maxRetries) {
+      const retryAfter = res.headers.get('Retry-After');
+      let delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseDelayMs * Math.pow(2, attempt);
+      if (isNaN(delay)) delay = baseDelayMs * Math.pow(2, attempt);
+      console.warn(`RD Manager: HTTP 429 Too Many Requests. Retrying in ${delay}ms (Attempt ${attempt + 1}/${maxRetries}).`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      continue;
+    }
+    return res;
+  }
+}
+
 export async function getValidToken() {
   const data = await rdStorage.get(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at']);
   if (!data.rd_access_token) return null;
@@ -63,7 +78,7 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
   });
 
   if (!res.ok) {
-    if (res.status >= 400 && res.status < 500) {
+    if (res.status >= 400 && res.status < 500 && res.status !== 429) {
       await rdStorage.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
       triggerAuthFailure();
       return null;
@@ -95,7 +110,7 @@ export async function apiGet(endpoint, timeoutMs = 0) {
     const id = setTimeout(() => controller.abort(), timeoutMs);
     fetchOptions.signal = controller.signal;
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+      const res = await fetchWithRateLimitRetry(`${API_BASE}${endpoint}`, fetchOptions);
       clearTimeout(id);
       handleUnauth(res);
       if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
@@ -105,7 +120,7 @@ export async function apiGet(endpoint, timeoutMs = 0) {
       throw err;
     }
   } else {
-    const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+    const res = await fetchWithRateLimitRetry(`${API_BASE}${endpoint}`, fetchOptions);
     handleUnauth(res);
     if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
     return res.json();
@@ -131,7 +146,7 @@ export async function apiPost(endpoint, bodyData, isFormUrlEncoded = true, timeo
     const id = setTimeout(() => controller.abort(), timeoutMs);
     fetchOptions.signal = controller.signal;
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+      const res = await fetchWithRateLimitRetry(`${API_BASE}${endpoint}`, fetchOptions);
       clearTimeout(id);
       handleUnauth(res);
       if (!res.ok) throw new Error(`API POST Error: ${res.status}`);
@@ -142,7 +157,7 @@ export async function apiPost(endpoint, bodyData, isFormUrlEncoded = true, timeo
       throw err;
     }
   } else {
-    const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+    const res = await fetchWithRateLimitRetry(`${API_BASE}${endpoint}`, fetchOptions);
     handleUnauth(res);
     if (!res.ok) throw new Error(`API POST Error: ${res.status}`);
     const text = await res.text();
@@ -154,7 +169,7 @@ export async function apiPut(endpoint, blobData) {
   const token = await getValidToken();
   if (!token) throw new Error('Unauthenticated');
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetchWithRateLimitRetry(`${API_BASE}${endpoint}`, {
     method: 'PUT',
     headers: { 'Authorization': `Bearer ${token}` },
     body: blobData
@@ -171,7 +186,7 @@ export async function apiDelete(endpoint) {
   const token = await getValidToken();
   if (!token) throw new Error('Unauthenticated');
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const res = await fetchWithRateLimitRetry(`${API_BASE}${endpoint}`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` }
   });
