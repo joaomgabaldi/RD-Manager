@@ -22,7 +22,8 @@
   ],
   "host_permissions": [
     "https://api.real-debrid.com/*",
-    "http://127.0.0.1:9666/*"
+    "http://127.0.0.1:9666/*",
+    "https://cable.ayra.ch/*"
   ],
   "optional_host_permissions": [
     "<all_urls>"
