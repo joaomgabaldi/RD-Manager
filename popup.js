@@ -17,6 +17,7 @@ let jdPort = '9666';
 let currentlyLockedTorrentId = null;
 let ignoreAutoLockIds = new Set();
 let oauthPollingInterval = null;
+let isFetchingAll = false; // Flag para evitar execuções paralelas de fetchAll
 
 const dlElementMap = new Map();
 const $ = (sel) => document.querySelector(sel);
@@ -24,8 +25,7 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 document.addEventListener('DOMContentLoaded', async () => {
   localizeHtmlPage();
-  await loadSettings();
-  await loadCachedStorageValues();
+  await bootExtension();
   bindEvents();
   
   onAuthFailure(() => forceLogout());
@@ -35,18 +35,55 @@ document.addEventListener('DOMContentLoaded', async () => {
       forceLogout();
     }
   });
+});
+
+window.addEventListener('pagehide', () => stopAutoRefresh());
+
+// Consolida múltiplas chamadas ao storage no boot
+async function bootExtension() {
+  const data = await browser.storage.local.get([
+    'rd_theme', 'rd_hover_lift', 'rd_use_jdownloader', 'rd_jd_port', 
+    'rd_notifications_enabled', 'rd_ignore_locks', 'rd_cached_downloads', 
+    'rd_cached_user', 'rd_oauth_pending'
+  ]);
+
+  // Aplica configurações
+  const theme = data.rd_theme || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+  const hoverLift = data.rd_hover_lift !== false ? 'on' : 'off';
+  document.documentElement.setAttribute('data-hover-lift', hoverLift);
+  useJDownloader = data.rd_use_jdownloader === true;
+  jdPort = data.rd_jd_port || '9666';
   
+  cachedNotificationsEnabled = data.rd_notifications_enabled !== false;
+  
+  if (data.rd_ignore_locks && Array.isArray(data.rd_ignore_locks)) {
+    ignoreAutoLockIds = new Set(data.rd_ignore_locks);
+  }
+
   const token = await getValidToken();
   if (token) {
     hasValidToken = true;
-    await loadCachedData();
+    
+    // Aplica dados cacheados
+    if (data.rd_cached_downloads && data.rd_cached_downloads.length > 0) {
+      allDownloads = data.rd_cached_downloads;
+      renderDownloads();
+      enforceSelectionLock();
+    } else {
+      showState('loading');
+    }
+    
+    if (data.rd_cached_user) {
+      showUserBar(data.rd_cached_user);
+    }
+    
     await loadLocalNotifications();
     refreshInBackground();
     fetchUserInfo();
   } else {
     showState('no-api');
     
-    const data = await browser.storage.local.get('rd_oauth_pending');
     if (data.rd_oauth_pending && data.rd_oauth_pending.expires_at > Date.now()) {
       const btn = $('#btn-login-api');
       if (btn) btn.textContent = i18n('verifyingAuth');
@@ -57,17 +94,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       browser.storage.local.remove('rd_oauth_pending');
     }
   }
-});
-
-window.addEventListener('pagehide', () => stopAutoRefresh());
-
-async function loadCachedStorageValues() {
-  return browser.storage.local.get(['rd_notifications_enabled', 'rd_ignore_locks']).then((data) => {
-    cachedNotificationsEnabled = data.rd_notifications_enabled !== false;
-    if (data.rd_ignore_locks && Array.isArray(data.rd_ignore_locks)) {
-      ignoreAutoLockIds = new Set(data.rd_ignore_locks);
-    }
-  });
 }
 
 function addIgnoreLock(id) {
@@ -84,22 +110,6 @@ browser.storage.onChanged.addListener((changes, area) => {
     loadLocalNotifications();
   }
 });
-
-async function loadCachedData() {
-  return browser.storage.local.get(['rd_cached_downloads', 'rd_cached_user']).then((data) => {
-    if (data.rd_cached_downloads && data.rd_cached_downloads.length > 0) {
-      allDownloads = data.rd_cached_downloads;
-      renderDownloads();
-      enforceSelectionLock();
-    }
-    if (data.rd_cached_user) {
-      showUserBar(data.rd_cached_user);
-    }
-    if (!data.rd_cached_downloads || data.rd_cached_downloads.length === 0) {
-      showState('loading');
-    }
-  });
-}
 
 function cacheData(downloads) {
   const thirtyDaysAgo = Date.now() - (30 * 86400000);
@@ -191,17 +201,6 @@ function enforceSelectionLock() {
   }
 }
 
-async function loadSettings() {
-  return browser.storage.local.get(['rd_theme', 'rd_hover_lift', 'rd_use_jdownloader', 'rd_jd_port']).then((data) => {
-    const theme = data.rd_theme || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-    const hoverLift = data.rd_hover_lift !== false ? 'on' : 'off';
-    document.documentElement.setAttribute('data-hover-lift', hoverLift);
-    useJDownloader = data.rd_use_jdownloader === true;
-    jdPort = data.rd_jd_port || '9666';
-  });
-}
-
 function saveTheme(theme) {
   browser.storage.local.set({ rd_theme: theme });
 }
@@ -209,6 +208,29 @@ function saveTheme(theme) {
 let deleteAllHoldTimer = null;
 
 function bindEvents() {
+  // Global Keyboard Shortcuts
+  document.addEventListener('keydown', (e) => {
+    const overlay = $('#modal-overlay');
+    const isModalOpen = overlay && !overlay.classList.contains('hidden');
+
+    if (e.key === 'Escape' && isModalOpen) {
+      if (overlay.dataset.locked !== 'true') {
+        closeModal();
+      }
+    }
+
+    if (e.key === 'Enter' && isModalOpen) {
+      // Evita ativar se o foco estiver em um textarea para permitir quebras de linha
+      if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+      
+      const submitBtn = $('#modal-body').querySelector('.form-submit:not([disabled])');
+      if (submitBtn) {
+        e.preventDefault();
+        submitBtn.click();
+      }
+    }
+  });
+
   $('#btn-theme').addEventListener('click', () => {
     const html = document.documentElement;
     const current = html.getAttribute('data-theme');
@@ -667,8 +689,14 @@ async function forceLogout(msg = null) {
 }
 
 async function fetchAll(isBackgroundSync = false) {
+  if (isFetchingAll) return;
+  isFetchingAll = true;
+  
   const token = await getValidToken();
-  if (!token) return showState('no-api');
+  if (!token) {
+    isFetchingAll = false;
+    return showState('no-api');
+  }
   if (allDownloads.length === 0) showState('loading');
 
   try {
@@ -786,6 +814,8 @@ async function fetchAll(isBackgroundSync = false) {
     if (err.message === 'Unauthenticated') return;
     if (allDownloads.length === 0) showState('empty');
     if (hasValidToken) toast(i18n('fetchingDownloadsFailed'), 'error');
+  } finally {
+    isFetchingAll = false;
   }
 }
 
