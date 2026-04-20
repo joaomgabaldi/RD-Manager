@@ -55,7 +55,7 @@ async function bootExtension() {
   const data = await rdStorage.get([
     'rd_theme', 'rd_hover_lift', 'rd_use_jdownloader', 'rd_jd_port', 
     'rd_notifications_enabled', 'rd_ignore_locks', 'rd_cached_downloads', 
-    'rd_cached_user', 'rd_oauth_pending'
+    'rd_cached_user', 'rd_oauth_pending', 'rd_use_vlc'
   ]);
 
   const theme = data.rd_theme || 'dark';
@@ -64,6 +64,7 @@ async function bootExtension() {
   document.documentElement.setAttribute('data-hover-lift', hoverLift);
   state.useJDownloader = data.rd_use_jdownloader === true;
   state.jdPort = data.rd_jd_port || '9666';
+  state.useVlc = data.rd_use_vlc === true;
   
   state.cachedNotificationsEnabled = data.rd_notifications_enabled !== false;
   state.selectionMode = false;
