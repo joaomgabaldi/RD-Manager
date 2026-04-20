@@ -152,7 +152,10 @@
   "convertPointsTooltip": { "message": "Converter 1000 pontos em 30 dias Premium" },
   "convertPointsSuccess": { "message": "Pontos convertidos! +30 dias" },
   "convertPointsError": { "message": "Erro ao converter pontos" },
-  "play": { "message": "Reproducir" },
+  "play": { "message": "Reproduzir" },
   "startingStream": { "message": "Iniciando stream..." },
-  "openInVlc": { "message": "Abrir no VLC" }
+  "openInVlc": { "message": "Abrir no VLC" },
+  "holdToDelete": { "message": "Segure p/ Excluir" },
+  "filterTorrent": { "message": "TOR ↻" },
+  "filterWeb": { "message": "WEB ↻" }
 }
