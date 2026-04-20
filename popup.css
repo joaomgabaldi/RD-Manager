@@ -1923,3 +1923,6 @@ body.selection-mode .dl-download-btn {
     background: var(--red-dim) !important;
     color: var(--red) !important;
 }
+.tab-delete-all.active-mode.holding {
+    color: #ffffff !important;
+}
