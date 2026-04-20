@@ -21,12 +21,23 @@ export function showAuthModal(autoStartOauth = false) {
 
     let authSection;
     if (state.hasValidToken) {
+      const canConvert = cachedUser?.points >= 1000;
+      const convertBtn = canConvert ? el('button', {
+        id: 'btn-convert-points', 
+        className: 'action-btn secondary', 
+        style: 'font-size: 9px; padding: 2px 6px; min-height: 0; margin-left: 6px;',
+        title: i18n('convertPointsTooltip')
+      }, i18n('convertPointsBtn')) : '';
+
       authSection = el('div', {className: 'settings-account-footer', style: 'display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color);'},
         el('div', {style: 'display: flex; align-items: center; gap: 8px;'},
           makeSvg([['path',{d:'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'}],['circle',{cx:'12',cy:'7',r:'4'}]]),
           el('div', {style: 'display: flex; flex-direction: column; text-align: left; line-height: 1.2;'},
             el('span', {className: 'settings-account-name', style: 'font-weight: 600;'}, username),
-            el('span', {className: 'settings-account-points', style: 'font-size: 11px; color: var(--text-muted); margin-top: 2px;'}, `${userPoints} ${i18n('points')}`)
+            el('div', {style: 'display: flex; align-items: center; margin-top: 2px;'},
+              el('span', {className: 'settings-account-points', style: 'font-size: 11px; color: var(--text-muted);'}, `${userPoints} ${i18n('points')}`),
+              convertBtn
+            )
           )
         ),
         el('button', {id: 'btn-logout', className: 'action-btn ghost', style: 'color: #f46878;', 'aria-label': i18n('logout')}, i18n('logout'))
@@ -97,6 +108,27 @@ export function showAuthModal(autoStartOauth = false) {
     );
 
     openModalWithNode(i18n('settings'), body);
+
+    const btnConvert = DOM.$('#btn-convert-points');
+    if (btnConvert) {
+      btnConvert.addEventListener('click', async () => {
+        btnConvert.disabled = true;
+        btnConvert.textContent = '...';
+        try {
+          const { apiPost } = await import('./api.js');
+          await apiPost('/settings/convertPoints');
+          toast(i18n('convertPointsSuccess'), 'success');
+          
+          import('./popup-downloads.js').then(m => m.fetchUserInfo());
+          
+          btnConvert.style.display = 'none'; 
+        } catch (err) {
+          toast(i18n('convertPointsError'), 'error');
+          btnConvert.disabled = false;
+          btnConvert.textContent = i18n('convertPointsBtn');
+        }
+      });
+    }
 
     DOM.$('#toggle-context-menu').addEventListener('change', (e) => browser.storage.local.set({ rd_context_menu: e.target.checked }));
     DOM.$('#toggle-notifications').addEventListener('change', (e) => {
