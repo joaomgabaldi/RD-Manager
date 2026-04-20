@@ -88,11 +88,20 @@ async function checkForCompletedDownloads() {
       rd_local_downloads.forEach(d => current.push({ id: String(d.id), name: d.name, type: 'web', ready: true, status: 'downloaded' }));
     }
 
+    // Seção do loop com Throttle implementada
+    let requestCount = 0;
     for (const id of trackedIds) {
       if (String(id).startsWith('web-')) continue;
+      
       try {
         const t = await apiGet(`/torrents/info/${id}`, 10000);
         if (t) current.push({ id: String(t.id), name: t.filename, type: 'torrent', ready: isReady(t), status: t.status });
+        
+        requestCount++;
+        // Throttle: pausa de 200ms a cada 5 requisições para evitar rate limit
+        if (requestCount % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       } catch (err) {
         if (err.message && (err.message.includes('404') || err.message.includes('Error: 404'))) {
           trackedIds.delete(id);
