@@ -33,10 +33,14 @@ export async function getValidToken() {
     }
     
     if (refreshPromise) {
-      return refreshPromise;
+      return refreshPromise.catch(() => null);
     }
     
     refreshPromise = refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret)
+      .catch(err => {
+        console.warn('RD Manager: Falha temporária ao atualizar token (rede/servidor).', err);
+        return null; 
+      })
       .finally(() => { refreshPromise = null; });
       
     return refreshPromise;
@@ -45,36 +49,35 @@ export async function getValidToken() {
 }
 
 async function refreshAccessToken(refreshToken, clientId, clientSecret) {
-  try {
-    const res = await fetch(`${OAUTH_BASE}/token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        refresh_token: refreshToken,
-        grant_type: 'http://oauth.net/grant_type/device/1.0'
-      }).toString()
-    });
+  const res = await fetch(`${OAUTH_BASE}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: 'http://oauth.net/grant_type/device/1.0'
+    }).toString()
+  });
 
-    if (!res.ok) {
+  if (!res.ok) {
+    if (res.status >= 400 && res.status < 500) {
       await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
       triggerAuthFailure();
       return null;
     }
-
-    const tokenData = await res.json();
-    const expiry = Date.now() + (tokenData.expires_in * 1000);
-    await browser.storage.local.set({
-      rd_access_token: tokenData.access_token,
-      rd_refresh_token: tokenData.refresh_token || refreshToken,
-      rd_token_expires_at: expiry
-    });
-
-    return tokenData.access_token;
-  } catch (err) {
-    return null;
+    throw new Error(`HTTP Error: ${res.status}`);
   }
+
+  const tokenData = await res.json();
+  const expiry = Date.now() + (tokenData.expires_in * 1000);
+  await browser.storage.local.set({
+    rd_access_token: tokenData.access_token,
+    rd_refresh_token: tokenData.refresh_token || refreshToken,
+    rd_token_expires_at: expiry
+  });
+
+  return tokenData.access_token;
 }
 
 export async function apiGet(endpoint, timeoutMs = 0) {
@@ -184,8 +187,10 @@ export function trackId(id) {
     set.add(id);
     await browser.storage.local.set({ rd_tracked_ids: [...set] });
   });
-  
-  trackQueue = operation.catch(() => {});
+
+  trackQueue = operation.catch((err) => {
+    console.error('RD Manager: Falha ao rastrear ID', err);
+  });
 
   return operation;
 }
