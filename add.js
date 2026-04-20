@@ -95,32 +95,40 @@ function renderAddForm() {
     try {
       if (file && (file.name.toLowerCase().endsWith('.dlc') || file.name.toLowerCase().endsWith('.rsdf') || file.name.toLowerCase().endsWith('.ccf'))) {
         
-        // Conversão do objeto File para ArrayBuffer para enviar os bytes brutos sem metadados MIME do navegador
+        const ext = file.name.split('.').pop().toLowerCase();
         const buffer = await file.arrayBuffer();
-        const responseData = await apiPut('/unrestrict/containerFile', buffer);
         
-        let extractedLinks = [];
-        
-        if (Array.isArray(responseData)) {
-            extractedLinks = responseData;
-        } else if (responseData && Array.isArray(responseData.links)) {
-            extractedLinks = responseData.links;
-        } else if (responseData && typeof responseData === 'object') {
-            extractedLinks = Object.values(responseData).filter(val => typeof val === 'string' && val.startsWith('http'));
-        } else if (typeof responseData === 'string' && responseData.startsWith('http')) {
-            extractedLinks = [responseData];
-        }
+        try {
+          const response = await fetch(`https://cable.ayra.ch/decrypt/decrypt.php?mode=${ext}`, {
+            method: 'POST',
+            headers: {
+              'User-Agent': 'RDManager-FirefoxExtension/1.0 +https://github.com/joaomgabaldi/rd-manager'
+            },
+            body: buffer
+          });
 
-        if (extractedLinks.length === 0) {
-            toast('Nenhum link suportado extraído deste arquivo DLC.', 'error');
+          if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+          
+          const data = await response.json();
+
+          if (!data.success || !data.data || data.data.length === 0) {
+            toast(data.message || 'Falha ao descriptografar no serviço externo.', 'error');
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
             submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
             return;
-        }
+          }
 
-        renderDecodedLinks(extractedLinks);
-        return;
+          renderDecodedLinks(data.data);
+          return;
+        } catch (err) {
+          console.warn('RD Manager: Falha na API Ayra', err);
+          toast('Erro de rede ao contatar o serviço de descriptografia.', 'error');
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('loading');
+          submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
+          return;
+        }
       }
 
       let torrentId = null;
