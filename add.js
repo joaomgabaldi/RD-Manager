@@ -38,7 +38,7 @@ function renderAddForm() {
     ),
     el('div', {className: 'form-divider'}, el('span', {}, i18n('or'))),
     el('div', {className: 'form-group'},
-      el('input', {type: 'file', id: 'input-torrent-file', accept: '.torrent', style: 'display:none'}),
+      el('input', {type: 'file', id: 'input-torrent-file', accept: '.torrent,.dlc,.rsdf,.ccf', style: 'display:none'}),
       el('button', {className: 'form-file-btn', id: 'btn-select-torrent', 'aria-label': i18n('selectTorrentFile')}, btnSvg.cloneNode(true), i18n('selectTorrentFile')),
       el('div', {className: 'form-file-name', id: 'selected-file-name'})
     ),
@@ -93,6 +93,13 @@ function renderAddForm() {
     submitBtn.replaceChildren(i18n('adding'), el('span', {className: 'btn-spinner'}));
 
     try {
+      // Verifica se é um arquivo de container (DLC, RSDF, CCF) 
+      if (file && (file.name.toLowerCase().endsWith('.dlc') || file.name.toLowerCase().endsWith('.rsdf') || file.name.toLowerCase().endsWith('.ccf'))) {
+        const links = await apiPut('/unrestrict/containerFile', file);
+        renderDecodedLinks(links);
+        return;
+      }
+
       let torrentId = null;
       if (file) {
         const data = await apiPut('/torrents/addTorrent', file);
@@ -108,7 +115,7 @@ function renderAddForm() {
         await handleFileSelection(torrentId);
       }
     } catch (err) {
-      console.warn('RD Manager: Falha ao adicionar torrent/magnet', err);
+      console.warn('RD Manager: Falha ao adicionar ou processar arquivo', err);
       if (err.message === 'Unauthenticated') return;
       toast(i18n('failedAdd'), 'error');
       submitBtn.disabled = false;
@@ -118,6 +125,47 @@ function renderAddForm() {
   });
 
   setTimeout(() => magnetInput.focus(), 100);
+}
+
+function renderDecodedLinks(links) {
+  if (!links || links.length === 0) {
+    toast(i18n('noFiles'), 'error');
+    renderAddForm();
+    return;
+  }
+
+  const textArea = el('textarea', {
+    className: 'form-input',
+    style: 'margin-top: 10px; height: 180px; font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.5;',
+    readOnly: true,
+    spellcheck: 'false',
+    value: links.join('\n')
+  });
+
+  const copyBtn = el('button', {
+    className: 'action-btn ghost',
+    style: 'margin-top: 10px; width: 100%; justify-content: center; font-weight: 600;'
+  }, i18n('copyAllLinks'));
+
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(textArea.value).then(() => {
+      toast(i18n('copySuccess'), 'success');
+    });
+  });
+
+  const backBtn = el('button', {
+    className: 'form-submit',
+    style: 'margin-top: 10px; background: #444;'
+  }, i18n('back'));
+
+  backBtn.addEventListener('click', () => renderAddForm());
+
+  $('#content').replaceChildren(el('div', {},
+    el('div', {style: 'font-weight: 600; font-size: 14px; margin-bottom: 5px; color: var(--primary-color);'}, i18n('decodedLinksTitle')),
+    textArea,
+    copyBtn,
+    backBtn
+  ));
 }
 
 async function handleFileSelection(torrentId) {
