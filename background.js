@@ -28,7 +28,7 @@ function updateContextMenu() {
       if (enabled) {
         browser.contextMenus.create({
           id: 'send-to-rd',
-          title: 'Enviar para o RD Manager',
+          title: browser.i18n.getMessage('contextMenuTitle') || 'Enviar para o RD Manager',
           contexts: ['link', 'selection']
         });
       }
@@ -132,18 +132,34 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
   const url = info.linkUrl || (info.selectionText ? info.selectionText.trim() : null);
   if (!url) { showBadge(false); return; }
 
-  if (!info.linkUrl) {
-    const isValid = url.startsWith('magnet:') || url.startsWith('http://') || url.startsWith('https://');
-    if (!isValid) { showBadge(false); return; }
+  const isTorrentFile = url.endsWith('.torrent') || url.includes('.torrent?');
+  const isMagnet = url.startsWith('magnet:');
+  const isHttp = url.startsWith('http://') || url.startsWith('https://');
+
+  if (!info.linkUrl && !isMagnet && !isHttp) {
+    showBadge(false); return;
+  }
+
+  if (isTorrentFile) {
+    const urlObj = new URL(url);
+    const targetOrigin = `${urlObj.protocol}//${urlObj.host}/*`;
+    const hasPermission = await browser.permissions.contains({ origins: [targetOrigin] });
+    if (!hasPermission) {
+      const granted = await browser.permissions.request({ origins: [targetOrigin] });
+      if (!granted) {
+        showBadge(false);
+        return;
+      }
+    }
   }
 
   const token = await getValidToken();
   if (!token) { showBadge(false); return; }
 
   let workFn;
-  if (url.startsWith('magnet:')) {
+  if (isMagnet) {
     workFn = () => addMagnet(url);
-  } else if (url.endsWith('.torrent') || url.includes('.torrent?')) {
+  } else if (isTorrentFile) {
     workFn = () => addTorrentFile(url);
   } else {
     workFn = () => unrestrictLink(url);
@@ -165,17 +181,6 @@ async function addMagnet(magnet) {
 }
 
 async function addTorrentFile(url) {
-  const urlObj = new URL(url);
-  const targetOrigin = `${urlObj.protocol}//${urlObj.host}/*`;
-
-  const hasPermission = await browser.permissions.contains({ origins: [targetOrigin] });
-  if (!hasPermission) {
-    const granted = await browser.permissions.request({ origins: [targetOrigin] });
-    if (!granted) {
-      throw new Error('Permissão negada pelo usuário para acessar a origem do torrent.');
-    }
-  }
-
   const fileRes = await fetch(url);
   if (!fileRes.ok) throw new Error('Failed to fetch .torrent file');
   const blob = await fileRes.blob();
