@@ -1,4 +1,6 @@
-export const API_BASE = 'https://api.real-debrid.com/rest/1.0';
+import { rdStorage } from './storage.js';
+
+const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
 export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM';
 
@@ -15,14 +17,14 @@ function triggerAuthFailure() {
 
 function handleUnauth(res) {
   if (res.status === 401 || res.status === 403) {
-    browser.storage.local.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
+    rdStorage.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
     triggerAuthFailure();
     throw new Error('Unauthenticated');
   }
 }
 
 export async function getValidToken() {
-  const data = await browser.storage.local.get(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at']);
+  const data = await rdStorage.get(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at']);
   if (!data.rd_access_token) return null;
 
   const bufferMs = 300000;
@@ -33,7 +35,7 @@ export async function getValidToken() {
     }
     
     return await navigator.locks.request('rd_token_refresh', async () => {
-      const freshData = await browser.storage.local.get(['rd_access_token', 'rd_token_expires_at']);
+      const freshData = await rdStorage.get(['rd_access_token', 'rd_token_expires_at']);
       if (freshData.rd_access_token && Date.now() < (freshData.rd_token_expires_at - bufferMs)) {
         return freshData.rd_access_token;
       }
@@ -62,7 +64,7 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
 
   if (!res.ok) {
     if (res.status >= 400 && res.status < 500) {
-      await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
+      await rdStorage.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
       triggerAuthFailure();
       return null;
     }
@@ -71,7 +73,7 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
 
   const tokenData = await res.json();
   const expiry = Date.now() + (tokenData.expires_in * 1000);
-  await browser.storage.local.set({
+  await rdStorage.set({
     rd_access_token: tokenData.access_token,
     rd_refresh_token: tokenData.refresh_token || refreshToken,
     rd_token_expires_at: expiry
@@ -182,7 +184,7 @@ export async function apiDelete(endpoint) {
 
 export function trackId(id) {
   const operation = trackQueue.then(async () => {
-    const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
+    const { rd_tracked_ids } = await rdStorage.get('rd_tracked_ids');
     const set = new Set(rd_tracked_ids || []);
     set.add(id);
     
@@ -190,7 +192,7 @@ export function trackId(id) {
       set.delete(set.values().next().value);
     }
     
-    await browser.storage.local.set({ rd_tracked_ids: [...set] });
+    await rdStorage.set({ rd_tracked_ids: [...set] });
   });
 
   trackQueue = operation.catch((err) => {
