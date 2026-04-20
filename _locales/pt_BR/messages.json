@@ -72,7 +72,7 @@
   "jd2Label": { "message": "Enviar para o JDownloader 2" },
   "jd2Desc": { "message": "Envia links para a porta 9666. O JD2 precisa estar aberto." },
   "jdPortLabel": { "message": "Porta do JDownloader" },
-  "vlcLabel": { "message": "Exportar como M3U" },
+  "vlcLabel": { "message": "Abrir no VLC (via M3U)" },
   "vlcDesc": { "message": "Baixa um arquivo .m3u que abre automaticamente no VLC ou no seu player padrão." },
   "sendingToVlc": { "message": "Gerando arquivo VLC..." },
   "points": { "message": "Pontos de Fidelidade" },
@@ -165,7 +165,8 @@
   "downloadNameFallback": { "message": "Download" },
   "dropSubtitleHere": { "message": "Solte a legenda aqui (.SRT ou .VTT)" },
   "errorInvalidSubtitleFormat": { "message": "Formato inválido. Por favor, use um arquivo .SRT ou .VTT." },
-  "checkingCache": { "message": "A verificar disponibilidade..." },
-  "cachedInstant": { "message": "100% em Cache (Imediato)" },
-  "notCached": { "message": "Não está em cache (Requer download)" }
+  "decodedLinksTitle": { "message": "Links Descriptografados" },
+  "copyAllLinks": { "message": "Copiar Todos os Links" },
+  "copySuccess": { "message": "Copiado para a área de transferência!" },
+  "back": { "message": "Voltar" }
 }
