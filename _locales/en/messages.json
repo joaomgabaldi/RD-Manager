@@ -147,5 +147,7 @@
   "magnetTooltip": { "message": "Paste a magnet link or select a .torrent file below." },
   "dlNotificationsInfo": { "message": "Notifications depend on download tracking being enabled." },
   "dayRemaining": { "message": "day remaining" },
-  "predicted": { "message": "remaining (predicted)" }
+  "predicted": { "message": "remaining (predicted)" },
+  "addBtn": { "message": "Add" },
+  "noFiles": { "message": "No files found." }
 }
