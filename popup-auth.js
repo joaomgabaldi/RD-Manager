@@ -226,7 +226,7 @@ export function showAuthModal(autoStartOauth = false) {
   });
 }
 
-export async function startOAuthFlow() {
+async function startOAuthFlow() {
   const container = DOM.$('#settings-account-area');
   container.replaceChildren(el('div', {style: 'text-align:center; padding:10px;'}, el('div', {className: 'spinner'}), i18n('requestingCode')));
   
@@ -251,7 +251,7 @@ export async function startOAuthFlow() {
   }
 }
 
-export function renderOAuthPending(data) {
+function renderOAuthPending(data) {
   const container = DOM.$('#settings-account-area');
   if (!container) return;
 
@@ -300,7 +300,7 @@ export async function pollDeviceCredentials(deviceCode) {
   }
 }
 
-export async function exchangeDeviceToken(clientId, clientSecret, deviceCode) {
+async function exchangeDeviceToken(clientId, clientSecret, deviceCode) {
   try {
     const statusEl = DOM.$('#oauth-status');
     if (statusEl) statusEl.textContent = i18n('finishingLogin');
