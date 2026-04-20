@@ -143,5 +143,6 @@
   "noFiles": { "message": "No se encontraron archivos." },
   "addTorrentTitle": { "message": "Añadir Torrent / Magnet" },
   "dlFailedTitle": { "message": "Fallo en la Descarga" },
-  "dlFailedMessage": { "message": "Ocurrió un error en el archivo." }
+  "dlFailedMessage": { "message": "Ocurrió un error en el archivo." },
+  "itemsDeleted": { "message": "elemento(s) eliminado(s)" }
 }
