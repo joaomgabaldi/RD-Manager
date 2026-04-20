@@ -72,6 +72,9 @@
   "jd2Label": { "message": "Enviar para o JDownloader 2" },
   "jd2Desc": { "message": "Envia links para a porta 9666. O JD2 precisa estar aberto." },
   "jdPortLabel": { "message": "Porta do JDownloader" },
+  "vlcLabel": { "message": "Abrir no VLC" },
+  "vlcDesc": { "message": "Envia o arquivo direto para o player VLC (pula o player web)." },
+  "sendingToVlc": { "message": "Abrindo no VLC..." },
   "points": { "message": "Pontos de Fidelidade" },
   "logout": { "message": "Sair" },
   "requestingCode": { "message": "Solicitando código..." },
@@ -149,7 +152,7 @@
   "convertPointsTooltip": { "message": "Converter 1000 pontos em 30 dias Premium" },
   "convertPointsSuccess": { "message": "Pontos convertidos! +30 dias" },
   "convertPointsError": { "message": "Erro ao converter pontos" },
-  "play": { "message": "Reproduzir" },
+  "play": { "message": "Reproducir" },
   "startingStream": { "message": "Iniciando stream..." },
   "openInVlc": { "message": "Abrir no VLC" }
 }
