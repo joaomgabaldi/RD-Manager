@@ -154,5 +154,8 @@
   "convertPointsError": { "message": "Error converting points" },
   "play": { "message": "Play" },
   "startingStream": { "message": "Starting stream..." },
-  "openInVlc": { "message": "Open in VLC" }
+  "openInVlc": { "message": "Open in VLC" },
+  "holdToDelete": { "message": "Hold to Delete" },
+  "filterTorrent": { "message": "TOR ↻" },
+  "filterWeb": { "message": "WEB ↻" }
 }
