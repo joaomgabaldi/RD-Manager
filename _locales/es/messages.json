@@ -144,5 +144,9 @@
   "addTorrentTitle": { "message": "Añadir Torrent / Magnet" },
   "dlFailedTitle": { "message": "Fallo en la Descarga" },
   "dlFailedMessage": { "message": "Ocurrió un error en el archivo." },
-  "itemsDeleted": { "message": "elemento(s) eliminado(s)" }
+  "itemsDeleted": { "message": "elemento(s) eliminado(s)" },
+  "convertPointsBtn": { "message": "Convertir (30 días)" },
+  "convertPointsTooltip": { "message": "Convertir 1000 puntos en 30 días Premium" },
+  "convertPointsSuccess": { "message": "¡Puntos convertidos! +30 días" },
+  "convertPointsError": { "message": "Error al convertir puntos" }
 }
