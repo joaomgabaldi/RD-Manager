@@ -660,6 +660,15 @@ export function renderItem(dl) {
   header.className = 'dl-item-header';
   header.title = name;
 
+  const cbWrap = document.createElement('div');
+  cbWrap.className = 'dl-select-cb-wrap';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.className = 'dl-select-cb';
+  cb.value = String(dl.id);
+  cbWrap.appendChild(cb);
+  header.appendChild(cbWrap);
+
   const typeBadge = document.createElement('span');
   typeBadge.className = `dl-type-badge ${type}`;
   typeBadge.textContent = type === 'web' ? 'WEB' : type.slice(0, 3).toUpperCase();
@@ -875,7 +884,7 @@ export async function deleteDownload(type, id) {
 
   try {
     if (type === 'torrent') {
-      toast(i18n('deleting'), 'success');
+      toast(i18n('deleting') || 'Excluindo', 'success');
       await apiDelete(`/torrents/delete/${id}`);
     } else if (type === 'web') {
       const rd_local_downloads = await rdStorage.getLocalDownloads();
@@ -897,10 +906,10 @@ export async function deleteDownload(type, id) {
     cacheData(state.allDownloads);
 
     if (state.allDownloads.length === 0) showState('empty');
-    toast(i18n('removed'), 'success');
+    toast(i18n('removed') || 'Removido', 'success');
   } catch (err) {
     if (err.message === 'Unauthenticated') return;
-    toast(i18n('deleteFailed'), 'error');
+    toast(i18n('deleteFailed') || 'Falha ao remover', 'error');
     if (itemElement) {
       itemElement.style.opacity = '1';
       itemElement.style.pointerEvents = 'auto';
@@ -908,37 +917,28 @@ export async function deleteDownload(type, id) {
   }
 }
 
-export async function deleteAllVisible() {
-  let targets = state.allDownloads;
-  switch (state.currentTab) {
-    case 'downloading': targets = targets.filter(d => !isCompleted(d)); break;
-    case 'completed':   targets = targets.filter(d => isCompleted(d)); break;
-    case 'search':
-      targets = state.searchQuery ? targets.filter(d => (d.name || '').toLowerCase().includes(state.searchQuery)) : targets;
-      targets = filterByAge(targets, state.ageFilterDays);
-      break;
-  }
-  if (state.currentTypeFilter) targets = targets.filter(d => d._type === state.currentTypeFilter);
-  if (targets.length === 0) return;
-
-  const targetIds = new Set(targets.map(d => String(d.id)));
+export async function deleteSelected() {
+  const selectedCbs = document.querySelectorAll('.dl-select-cb:checked');
+  if (selectedCbs.length === 0) return;
+  const idsToDelete = new Set(Array.from(selectedCbs).map(cb => cb.value));
+  const targets = state.allDownloads.filter(d => idsToDelete.has(String(d.id)));
 
   document.querySelectorAll('.dl-item').forEach(e => {
-    if (targetIds.has(e.dataset.id)) {
+    if (idsToDelete.has(e.dataset.id)) {
       e.style.transition = 'opacity 0.15s ease, transform 0.15s ease';
       e.style.opacity = '0';
       e.style.transform = 'translateX(-10px)';
     }
   });
-  
-  setTimeout(() => {
-    const ids = new Set(targets.map(d => String(d.id)));
-    state.allDownloads = state.allDownloads.filter(d => !ids.has(String(d.id)));
+
+  setTimeout(async () => {
+    state.allDownloads = state.allDownloads.filter(d => !idsToDelete.has(String(d.id)));
     cacheData(state.allDownloads);
     renderDownloads();
+    document.dispatchEvent(new CustomEvent('exit-selection-mode'));
   }, 150);
 
-  toast(i18n('deleting'), 'success');
+  toast(i18n('deleting') || 'Excluindo', 'success');
 
   const webTargets = targets.filter(dl => dl._type === 'web');
   const torrentTargets = targets.filter(dl => dl._type === 'torrent');
