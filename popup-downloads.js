@@ -564,7 +564,7 @@ function renderItemMeta(dl) {
   } else {
     const speed = dl.download_speed ? `${formatBytes(dl.download_speed)}/s` : '';
     const seeds = dl.seeds != null ? `${dl.seeds} Seeds` : '';
-    const eta = (dl.eta && dl.eta < 864000) ? `${formatETA(dl.eta)} ${i18n('predicted')}` : (dl.eta ? i18n('noPrediction') : '');
+    const eta = (dl.eta && dl.eta < 864000) ? `${formatETA(dl.eta)} ${i18n('timeRemaining')}` : (dl.eta ? i18n('noPrediction') : '');
     infoSpan.textContent = [size, seeds, speed, eta].filter(Boolean).join(' • ');
   }
 
