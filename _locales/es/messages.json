@@ -137,7 +137,6 @@
   "addedAt": { "message": "añadido" },
   "noPrediction": { "message": "Sin predicción" },
   "fetchingDownloadsFailed": { "message": "Error al obtener descargas" },
-  "verifyingAuth": { "message": "Verificando autorización..." },
   "multipleLinksExpand": { "message": "Múltiples archivos detectados. Expanda el elemento para elegir qué descargar." },
   "timeRemaining": { "message": "restante (previsto)" },
   "addBtn": { "message": "Añadir" },
