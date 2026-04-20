@@ -4,7 +4,7 @@ import { rdStorage } from './storage.js';
 import { i18n, localizeHtmlPage } from './utils.js';
 import { showAuthModal, forceLogout, pollDeviceCredentials } from './popup-auth.js';
 import { loadLocalNotifications, showNotificationsModal } from './popup-notifications.js';
-import { fetchAll, fetchUserInfo, renderDownloads, refreshInBackground, enforceSelectionLock, stopAutoRefresh, showState, deleteAllVisible, showWebLinkModal, downloadFile, deleteDownload, fetchTorrentFiles, openFileSelectionModal, isCompleted, showUserBar, updateAgeFilterUI } from './popup-downloads.js';
+import { fetchAll, fetchUserInfo, renderDownloads, refreshInBackground, enforceSelectionLock, stopAutoRefresh, showState, deleteSelected, showWebLinkModal, downloadFile, deleteDownload, fetchTorrentFiles, openFileSelectionModal, isCompleted, showUserBar, updateAgeFilterUI } from './popup-downloads.js';
 import { closeModal } from './popup-modals.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -23,6 +23,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 window.addEventListener('pagehide', () => stopAutoRefresh());
 
+export function toggleSelectionMode(force) {
+    state.selectionMode = force !== undefined ? force : !state.selectionMode;
+    document.body.classList.toggle('selection-mode', state.selectionMode);
+
+    const delSpan = DOM.$('#delete-btn-text');
+    if (state.selectionMode) {
+        if(delSpan) {
+            delSpan.removeAttribute('data-i18n');
+            delSpan.textContent = 'Segure p/ Excluir';
+        }
+        DOM.$('#btn-delete-all').classList.add('active-mode');
+        DOM.$$('.tab[data-tab]').forEach(t => t.classList.add('hidden'));
+        DOM.$('#btn-select-all').classList.remove('hidden');
+        DOM.$('#btn-cancel-select').classList.remove('hidden');
+    } else {
+        if(delSpan) {
+            delSpan.textContent = i18n('delete') || 'Excluir';
+        }
+        DOM.$('#btn-delete-all').classList.remove('active-mode');
+        DOM.$$('.tab[data-tab]').forEach(t => t.classList.remove('hidden'));
+        DOM.$('#btn-select-all').classList.add('hidden');
+        DOM.$('#btn-cancel-select').classList.add('hidden');
+        DOM.$$('.dl-select-cb').forEach(cb => cb.checked = false);
+    }
+}
+
+document.addEventListener('exit-selection-mode', () => toggleSelectionMode(false));
+
 async function bootExtension() {
   const data = await rdStorage.get([
     'rd_theme', 'rd_hover_lift', 'rd_use_jdownloader', 'rd_jd_port', 
@@ -38,6 +66,7 @@ async function bootExtension() {
   state.jdPort = data.rd_jd_port || '9666';
   
   state.cachedNotificationsEnabled = data.rd_notifications_enabled !== false;
+  state.selectionMode = false;
   
   if (data.rd_ignore_locks && Array.isArray(data.rd_ignore_locks)) {
     state.ignoreAutoLockIds = new Set(data.rd_ignore_locks);
@@ -155,7 +184,7 @@ function bindEvents() {
     renderDownloads();
   });
 
-  DOM.$$('.tab:not(#tab-type-cycle):not(#btn-delete-all)').forEach((tab) => {
+  DOM.$$('.tab:not(#tab-type-cycle):not(#btn-delete-all):not(#btn-select-all):not(#btn-cancel-select)').forEach((tab) => {
     tab.addEventListener('click', () => {
       DOM.$$('.tab:not(#tab-type-cycle):not(#btn-delete-all)').forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
@@ -166,14 +195,27 @@ function bindEvents() {
   });
 
   const deleteAllBtn = DOM.$('#btn-delete-all');
+  
+  deleteAllBtn.addEventListener('click', (e) => {
+    if (!state.hasValidToken || state.allDownloads.length === 0) return;
+    if (!state.selectionMode) {
+      toggleSelectionMode(true);
+    }
+  });
+
   deleteAllBtn.addEventListener('mousedown', () => {
     if (!state.hasValidToken || state.allDownloads.length === 0) return;
+    if (!state.selectionMode) return;
+
+    const selectedCount = document.querySelectorAll('.dl-select-cb:checked').length;
+    if (selectedCount === 0) return;
+
     deleteAllBtn.classList.remove('no-transition');
     deleteAllBtn.classList.add('holding');
     globals.deleteAllHoldTimer = setTimeout(() => {
       deleteAllBtn.classList.add('no-transition');
       deleteAllBtn.classList.remove('holding');
-      deleteAllVisible();
+      import('./popup-downloads.js').then(m => m.deleteSelected());
     }, 1500);
   });
   
@@ -187,6 +229,16 @@ function bindEvents() {
   };
   deleteAllBtn.addEventListener('mouseup', cancelDeleteAll);
   deleteAllBtn.addEventListener('mouseleave', cancelDeleteAll);
+
+  DOM.$('#btn-select-all').addEventListener('click', () => {
+    const cbs = DOM.$$('.dl-select-cb');
+    const allChecked = Array.from(cbs).every(cb => cb.checked);
+    cbs.forEach(cb => cb.checked = !allChecked);
+  });
+
+  DOM.$('#btn-cancel-select').addEventListener('click', () => {
+    toggleSelectionMode(false);
+  });
 
   DOM.$('#search-input').addEventListener('input', (e) => {
     state.searchQuery = e.target.value.toLowerCase().trim();
@@ -241,6 +293,17 @@ function bindEvents() {
 }
 
 function handleListClick(e) {
+  if (state.selectionMode) {
+    const item = e.target.closest('.dl-item');
+    if (item) {
+        if (e.target.tagName !== 'INPUT' && !e.target.closest('button')) {
+            const cb = item.querySelector('.dl-select-cb');
+            if (cb) cb.checked = !cb.checked;
+        }
+    }
+    return;
+  }
+
   const dlBtn = e.target.closest('.dl-download-btn');
   if (dlBtn) {
     if (dlBtn.dataset.action === 'select-files') {
