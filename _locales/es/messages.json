@@ -137,7 +137,7 @@
   "addedAt": { "message": "añadido" },
   "noPrediction": { "message": "Sin predicción" },
   "fetchingDownloadsFailed": { "message": "Error al obtener descargas" },
-  "multipleLinksExpand": { "message": "Múltiples archivos detectados. Expanda el elemento para elegir qué descargar." },
+  "multipleLinksExpand": { "message": "Múltiplos archivos detectados. Expanda el elemento para elegir qué descargar." },
   "timeRemaining": { "message": "restante (previsto)" },
   "addBtn": { "message": "Añadir" },
   "noFiles": { "message": "No se encontraron archivos." },
@@ -148,5 +148,8 @@
   "convertPointsBtn": { "message": "Convertir (30 días)" },
   "convertPointsTooltip": { "message": "Convertir 1000 puntos en 30 días Premium" },
   "convertPointsSuccess": { "message": "¡Puntos convertidos! +30 días" },
-  "convertPointsError": { "message": "Error al convertir puntos" }
+  "convertPointsError": { "message": "Error al convertir puntos" },
+  "play": { "message": "Reproducir" },
+  "startingStream": { "message": "Iniciando stream..." },
+  "openInVlc": { "message": "Abrir en VLC" }
 }
