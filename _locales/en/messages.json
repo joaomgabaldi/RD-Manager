@@ -139,7 +139,7 @@
   "verifyingAuth": { "message": "Verifying authorization..." },
   "multipleLinksExpand": { "message": "Multiple files detected. Expand the item to choose what to download." },
   "magnetTooltip": { "message": "Paste a magnet link or select a .torrent file below." },
-  "predicted": { "message": "remaining (predicted)" },
+  "timeRemaining": { "message": "remaining (predicted)" },
   "addBtn": { "message": "Add" },
   "noFiles": { "message": "No files found." },
   "addTorrentTitle": { "message": "Add Torrent / Magnet" },
