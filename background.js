@@ -4,8 +4,9 @@ const ALARM_NAME = 'rd-completion-check';
 const POLL_INTERVAL_MINUTES = 1;
 const DEFAULT_BADGE_COLOR = '#1a9c4a';
 
-onAuthFailure(() => {
+onAuthFailure(async () => {
   console.warn('RD Manager: Falha de autenticação detetada em background.');
+  await browser.alarms.clear(ALARM_NAME); // Desliga o polling quando o token for perdido
   browser.runtime.sendMessage({ action: 'force_logout' }).catch(() => {});
 });
 
@@ -47,18 +48,23 @@ async function scheduleAlarm() {
 }
 
 browser.runtime.onMessage.addListener((msg) => {
-  if (msg === 'rd-check-now') setTimeout(checkForCompletedDownloads, 1000);
+  if (msg === 'rd-check-now') {
+    scheduleAlarm(); // Reativa o alarme caso ele tenha morrido por auth failure
+    setTimeout(checkForCompletedDownloads, 1000);
+  }
   if (msg?.action === 'delete-torrents' && Array.isArray(msg.ids)) {
     deleteTorrentsSequentially(msg.ids);
   }
 });
 
+// Utilitário para criar pausas assíncronas
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function deleteTorrentsSequentially(ids) {
   for (const id of ids) {
     try {
       await apiDelete(`/torrents/delete/${id}`);
+      // Pausa de 500ms entre exclusões para evitar Rate Limit (HTTP 429)
       await sleep(500);
     } catch (err) {
       console.warn(`RD Manager: Falha ao deletar torrent ${id} em background:`, err);
@@ -131,8 +137,8 @@ async function checkForCompletedDownloads() {
         const isError = ['error', 'dead', 'virus', 'magnet_error'].includes((dl.status || '').toLowerCase());
         return {
           id: `${dl.id}-${Date.now()}`,
-          title: isError ? 'Falha no Download' : (browser.i18n.getMessage('dlAvailable') || 'Download Disponível'),
-          message: dl.name || (isError ? 'Ocorreu um erro no ficheiro.' : (browser.i18n.getMessage('dlCompletedMsg') || 'Um download foi concluído')),
+          title: isError ? (browser.i18n.getMessage('dlFailedTitle') || 'Falha no Download') : (browser.i18n.getMessage('dlAvailable') || 'Download Disponível'),
+          message: dl.name || (isError ? (browser.i18n.getMessage('dlFailedMessage') || 'Ocorreu um erro no arquivo.') : (browser.i18n.getMessage('dlCompletedMsg') || 'Um download foi concluído')),
           type: dl.type,
           created_at: new Date().toISOString(),
           read: false,
