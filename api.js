@@ -1,11 +1,11 @@
 export const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
-const CLIENT_ID = 'X245A4XAIBGVM';
+export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM'; // Fonte única de verdade
 
-let authFailureCallbacks = [];
+const authFailureCallbacks = new Set(); // Usando Set para evitar duplicatas
 
 export function onAuthFailure(cb) {
-  authFailureCallbacks.push(cb);
+  authFailureCallbacks.add(cb);
 }
 
 function triggerAuthFailure() {
@@ -67,18 +67,34 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
   }
 }
 
-export async function apiGet(endpoint) {
+export async function apiGet(endpoint, timeoutMs = 0) {
   const token = await getValidToken();
   if (!token) throw new Error('Unauthenticated');
 
-  const res = await fetch(`${API_BASE}${endpoint}`, {
+  const fetchOptions = {
     headers: { 'Authorization': `Bearer ${token}` }
-  });
+  };
 
-  handleUnauth(res);
-
-  if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
-  return res.json();
+  if (timeoutMs > 0) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    fetchOptions.signal = controller.signal;
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+      clearTimeout(id);
+      handleUnauth(res);
+      if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
+      return res.json();
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  } else {
+    const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+    handleUnauth(res);
+    if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
+    return res.json();
+  }
 }
 
 export async function apiPost(endpoint, bodyData, isFormUrlEncoded = true, timeoutMs = 0) {
