@@ -39,7 +39,7 @@ function toggleSelectionMode(force) {
         DOM.$('#btn-cancel-select').classList.remove('hidden');
     } else {
         if(delSpan) {
-            delSpan.textContent = i18n('delete') || 'Excluir';
+            delSpan.textContent = i18n('delete');
         }
         DOM.$('#btn-delete-all').classList.remove('active-mode');
         DOM.$$('.tab[data-tab]').forEach(t => t.classList.remove('hidden'));
