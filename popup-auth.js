@@ -7,7 +7,7 @@ import { rdStorage } from './storage.js';
 
 export function showAuthModal(autoStartOauth = false) {
   const autoStart = autoStartOauth === true;
-  browser.storage.local.get([
+  rdStorage.get([
     'rd_context_menu', 'rd_notifications_enabled', 'rd_hover_lift', 
     'rd_cached_user', 'rd_use_jdownloader', 'rd_jd_port', 'rd_oauth_pending', 'rd_use_vlc'
   ]).then((data) => {
@@ -128,7 +128,6 @@ export function showAuthModal(autoStartOauth = false) {
     }
 
     bodyChildren.push(el('div', {className: 'settings-account-section', id: 'settings-account-area'}, authSection));
-
     const body = el('div', {}, ...bodyChildren);
 
     openModalWithNode(i18n('settings'), body);
@@ -146,7 +145,7 @@ export function showAuthModal(autoStartOauth = false) {
           const popupDownloads = await import('./popup-downloads.js');
           await popupDownloads.fetchUserInfo();
           
-          const freshData = await browser.storage.local.get('rd_cached_user');
+          const freshData = await rdStorage.get('rd_cached_user');
           if (freshData.rd_cached_user) {
             const pointsEl = document.querySelector('.settings-account-points');
             if (pointsEl) {
@@ -163,16 +162,16 @@ export function showAuthModal(autoStartOauth = false) {
       });
     }
 
-    DOM.$('#toggle-context-menu').addEventListener('change', (e) => browser.storage.local.set({ rd_context_menu: e.target.checked }));
+    DOM.$('#toggle-context-menu').addEventListener('change', (e) => rdStorage.set({ rd_context_menu: e.target.checked }));
     DOM.$('#toggle-notifications').addEventListener('change', (e) => {
-      browser.storage.local.set({ rd_notifications_enabled: e.target.checked });
+      rdStorage.set({ rd_notifications_enabled: e.target.checked });
       if (!e.target.checked) {
         state.notifications = [];
         import('./popup-notifications.js').then(m => m.updateNotificationBadge());
       }
     });
     DOM.$('#toggle-hover-lift').addEventListener('change', (e) => {
-      browser.storage.local.set({ rd_hover_lift: e.target.checked });
+      rdStorage.set({ rd_hover_lift: e.target.checked });
       document.documentElement.setAttribute('data-hover-lift', e.target.checked ? 'on' : 'off');
     });
 
@@ -180,7 +179,7 @@ export function showAuthModal(autoStartOauth = false) {
     if (toggleVlc) {
       toggleVlc.addEventListener('change', (e) => {
         state.useVlc = e.target.checked;
-        browser.storage.local.set({ rd_use_vlc: state.useVlc });
+        rdStorage.set({ rd_use_vlc: state.useVlc });
       });
     }
 
@@ -188,7 +187,7 @@ export function showAuthModal(autoStartOauth = false) {
     if (toggleJd2) {
       toggleJd2.addEventListener('change', (e) => {
         state.useJDownloader = e.target.checked;
-        browser.storage.local.set({ rd_use_jdownloader: state.useJDownloader });
+        rdStorage.set({ rd_use_jdownloader: state.useJDownloader });
         const portContainer = DOM.$('#jd-port-container');
         if (portContainer) {
           portContainer.style.display = state.useJDownloader ? 'block' : 'none';
@@ -200,7 +199,7 @@ export function showAuthModal(autoStartOauth = false) {
     if (jdPortInput) {
       jdPortInput.addEventListener('change', (e) => {
         state.jdPort = e.target.value.trim() || '9666';
-        browser.storage.local.set({ rd_jd_port: state.jdPort });
+        rdStorage.set({ rd_jd_port: state.jdPort });
       });
     }
 
@@ -213,7 +212,7 @@ export function showAuthModal(autoStartOauth = false) {
       if (data.rd_oauth_pending.expires_at > Date.now()) {
         renderOAuthPending(data.rd_oauth_pending);
       } else {
-        browser.storage.local.remove('rd_oauth_pending');
+        rdStorage.removeOAuthPending();
         if (autoStart) startOAuthFlow();
       }
     } else if (!state.hasValidToken && autoStart) {
@@ -243,7 +242,7 @@ export async function startOAuthFlow() {
       expires_at: Date.now() + (data.expires_in * 1000)
     };
     
-    await browser.storage.local.set({ rd_oauth_pending: pendingData });
+    await rdStorage.saveOAuthPending(pendingData);
     renderOAuthPending(pendingData);
   } catch (err) {
     console.warn('RD Manager: Erro no start OAuth flow', err);
@@ -268,7 +267,7 @@ export function renderOAuthPending(data) {
 
   DOM.$('#btn-cancel-oauth').addEventListener('click', async () => {
     if (globals.oauthPollingInterval) { clearInterval(globals.oauthPollingInterval); globals.oauthPollingInterval = null; }
-    await browser.storage.local.remove('rd_oauth_pending');
+    await rdStorage.removeOAuthPending();
     const btn = DOM.$('#btn-login-api');
     if (btn) btn.textContent = i18n('connectRd');
     showAuthModal(false);
@@ -295,7 +294,7 @@ export async function pollDeviceCredentials(deviceCode) {
     if (globals.oauthPollingInterval) { clearInterval(globals.oauthPollingInterval); globals.oauthPollingInterval = null; }
     const statusEl = DOM.$('#oauth-status');
     if (statusEl) statusEl.textContent = i18n('authError');
-    await browser.storage.local.remove('rd_oauth_pending');
+    await rdStorage.removeOAuthPending();
     const btn = DOM.$('#btn-login-api');
     if (btn) btn.textContent = i18n('connectRd');
   }
@@ -320,14 +319,14 @@ export async function exchangeDeviceToken(clientId, clientSecret, deviceCode) {
     const tokenData = await res.json();
     if (tokenData.access_token) {
       const expiry = Date.now() + (tokenData.expires_in * 1000);
-      await browser.storage.local.set({
-        rd_access_token: tokenData.access_token,
-        rd_refresh_token: tokenData.refresh_token,
-        rd_oauth_client_id: clientId,
-        rd_oauth_client_secret: clientSecret,
-        rd_token_expires_at: expiry
+      await rdStorage.saveAuthData({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        client_id: clientId,
+        client_secret: clientSecret,
+        expires_at: expiry
       });
-      await browser.storage.local.remove('rd_oauth_pending');
+      await rdStorage.removeOAuthPending();
       const btn = DOM.$('#btn-login-api');
       if (btn) btn.textContent = i18n('connectRd');
       state.hasValidToken = true;
@@ -347,13 +346,7 @@ export async function forceLogout(msg = null) {
   state.hasValidToken = false;
   stopAutoRefresh();
   
-  await browser.storage.local.remove([
-    'rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 
-    'rd_oauth_client_secret', 'rd_token_expires_at', 'rd_cached_user', 
-    'rd_cached_downloads', 'rd_oauth_pending', 'rd_ignore_locks',
-    'rd_tracked_ids', 'rd_local_notifications', 'rd_local_downloads',
-    'rd_use_vlc'
-  ]);
+  await rdStorage.clearAuthData();
   
   state.allDownloads = [];
   state.notifications = [];
