@@ -180,7 +180,6 @@ function renderDecodedLinks(links) {
     ul.appendChild(li);
   });
 
-  // Evento de hover em JS puro para não precisar mexer no popup.css
   ul.querySelectorAll('a').forEach(a => {
     a.addEventListener('mouseenter', () => a.style.color = 'var(--primary-color)');
     a.addEventListener('mouseleave', () => a.style.color = 'var(--text-color)');
@@ -197,39 +196,36 @@ function renderDecodedLinks(links) {
     });
   });
 
-  const jd2Btn = el('button', {
-    className: 'action-btn ghost',
-    style: 'width: 100%; justify-content: center; font-weight: 600;'
+  // Botão verde estilizado de acordo com o padrão primário (sucesso) da extensão
+  const jdBtn = el('button', {
+    className: 'action-btn',
+    style: 'width: 100%; justify-content: center; font-weight: 600; background: #1a9c4a; color: #fff; border: none;'
   }, i18n('exportJd2'));
 
-  jd2Btn.addEventListener('click', async () => {
-    jd2Btn.disabled = true;
-    jd2Btn.style.opacity = '0.5';
+  jdBtn.addEventListener('click', async () => {
+    jdBtn.disabled = true;
+    jdBtn.style.opacity = '0.7';
+    toast(i18n('sendingToJd'), 'info');
     
     try {
-      const form = new URLSearchParams();
-      form.append('passwords', '');
-      form.append('source', 'RDManager');
-      form.append('urls', links.join('\n'));
+      const { rd_jd_port } = await rdStorage.get('rd_jd_port');
+      const port = rd_jd_port || '9666';
+      const urlString = encodeURIComponent(links.join('\r\n'));
+      const jdUrl = `http://127.0.0.1:${port}/flash/add?source=RDManager&urls=${urlString}`;
 
-      const res = await fetch('http://127.0.0.1:9666/flash/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: form.toString()
-      });
-
-      if (!res.ok) throw new Error('JDownloader not running');
-      toast(i18n('exportJd2Success'), 'success');
+      // A requisição usa mode: no-cors para evitar falhas do navegador ao contatar o localhost
+      await fetch(jdUrl, { mode: 'no-cors' });
+      toast(i18n('addedToJd'), 'success');
     } catch (err) {
-      console.warn('RD Manager: Falha ao comunicar com JD2', err);
-      toast(i18n('exportJd2Error'), 'error');
+      console.warn('RD Manager: Erro ao enviar para JD', err);
+      toast(i18n('jdUnresponsive'), 'error');
     } finally {
-      jd2Btn.disabled = false;
-      jd2Btn.style.opacity = '1';
+      jdBtn.disabled = false;
+      jdBtn.style.opacity = '1';
     }
   });
 
-  const buttonsRow = el('div', {style: 'display: flex; gap: 8px; margin-top: 10px;'}, copyBtn, jd2Btn);
+  const buttonsRow = el('div', {style: 'display: flex; gap: 8px; margin-top: 10px;'}, copyBtn, jdBtn);
 
   const backBtn = el('button', {
     className: 'form-submit',
