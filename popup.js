@@ -606,11 +606,29 @@ async function triggerDownload(url, filename = '') {
         throw new Error('JD2 Error');
       }
     } catch (err) {
-      toast(i18n('jdUnresponsive'), 'error');
+      const body = el('div', {style: 'text-align: center; padding: 10px;'},
+        el('div', {style: 'margin-bottom: 20px; font-size: 14px;'}, i18n('jdFailedAskBrowser')),
+        el('div', {style: 'display: flex; gap: 10px; justify-content: center;'},
+          el('button', {id: 'btn-jd-no', className: 'form-submit', style: 'flex: 1; background: #f46878 !important; color: #fff !important; border: none !important;'}, i18n('no')),
+          el('button', {id: 'btn-jd-yes', className: 'form-submit', style: 'flex: 1;'}, i18n('yes'))
+        )
+      );
+
+      openModalWithNode(i18n('jdUnresponsive'), body);
+
+      document.getElementById('btn-jd-no').addEventListener('click', () => closeModal());
+      document.getElementById('btn-jd-yes').addEventListener('click', () => {
+        closeModal();
+        executeBrowserDownload(url);
+      });
     }
     return;
   }
 
+  executeBrowserDownload(url);
+}
+
+function executeBrowserDownload(url) {
   toast(i18n('startingDownload'), 'success');
   const a = document.createElement('a');
   a.href = url;
