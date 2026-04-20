@@ -7,11 +7,15 @@ import { rdStorage } from './storage.js';
 
 export function showAuthModal(autoStartOauth = false) {
   const autoStart = autoStartOauth === true;
-  browser.storage.local.get(['rd_context_menu', 'rd_notifications_enabled', 'rd_hover_lift', 'rd_cached_user', 'rd_use_jdownloader', 'rd_jd_port', 'rd_oauth_pending']).then((data) => {
+  browser.storage.local.get([
+    'rd_context_menu', 'rd_notifications_enabled', 'rd_hover_lift', 
+    'rd_cached_user', 'rd_use_jdownloader', 'rd_jd_port', 'rd_oauth_pending', 'rd_use_vlc'
+  ]).then((data) => {
     const contextMenuEnabled = data.rd_context_menu !== false;
     const notificationsEnabled = data.rd_notifications_enabled !== false;
     const hoverLiftEnabled = data.rd_hover_lift !== false;
     const jd2Enabled = data.rd_use_jdownloader === true;
+    const vlcEnabled = data.rd_use_vlc === true;
     const jdPortValue = data.rd_jd_port || '9666';
     const cachedUser = data.rd_cached_user;
     const userPoints = cachedUser?.points != null ? cachedUser.points.toLocaleString() : '—';
@@ -48,7 +52,7 @@ export function showAuthModal(autoStartOauth = false) {
       );
     }
 
-    const body = el('div', {},
+    const bodyChildren = [
       el('div', {className: 'form-group'},
         el('div', {className: 'toggle-row'},
           el('div', {},
@@ -87,25 +91,46 @@ export function showAuthModal(autoStartOauth = false) {
             el('span', {className: 'toggle-slider'})
           )
         )
-      ),
-      el('div', {className: 'form-group'},
-        el('div', {className: 'toggle-row'},
-          el('div', {},
-            el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, i18n('jd2Label')),
-            el('div', {className: 'form-hint'}, i18n('jd2Desc'))
-          ),
-          el('label', {className: 'toggle-switch'},
-            el('input', {type: 'checkbox', id: 'toggle-jd2', checked: jd2Enabled ? 'checked' : null}),
-            el('span', {className: 'toggle-slider'})
+      )
+    ];
+
+    // Renderiza JD2 e VLC apenas se o usuário estiver logado (evita quebrar a tela de login)
+    if (state.hasValidToken) {
+      bodyChildren.push(
+        el('div', {className: 'form-group'},
+          el('div', {className: 'toggle-row'},
+            el('div', {},
+              el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, i18n('vlcLabel')),
+              el('div', {className: 'form-hint'}, i18n('vlcDesc'))
+            ),
+            el('label', {className: 'toggle-switch'},
+              el('input', {type: 'checkbox', id: 'toggle-vlc', checked: vlcEnabled ? 'checked' : null}),
+              el('span', {className: 'toggle-slider'})
+            )
           )
+        ),
+        el('div', {className: 'form-group'},
+          el('div', {className: 'toggle-row'},
+            el('div', {},
+              el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, i18n('jd2Label')),
+              el('div', {className: 'form-hint'}, i18n('jd2Desc'))
+            ),
+            el('label', {className: 'toggle-switch'},
+              el('input', {type: 'checkbox', id: 'toggle-jd2', checked: jd2Enabled ? 'checked' : null}),
+              el('span', {className: 'toggle-slider'})
+            )
+          )
+        ),
+        el('div', {id: 'jd-port-container', className: 'form-group', style: jd2Enabled ? 'display: block;' : 'display: none;'},
+          el('label', {className: 'form-label'}, i18n('jdPortLabel')),
+          el('input', {type: 'number', id: 'input-jd-port', className: 'form-input', value: jdPortValue})
         )
-      ),
-      el('div', {id: 'jd-port-container', className: 'form-group', style: jd2Enabled ? 'display: block;' : 'display: none;'},
-        el('label', {className: 'form-label'}, i18n('jdPortLabel')),
-        el('input', {type: 'number', id: 'input-jd-port', className: 'form-input', value: jdPortValue})
-      ),
-      el('div', {className: 'settings-account-section', id: 'settings-account-area'}, authSection)
-    );
+      );
+    }
+
+    bodyChildren.push(el('div', {className: 'settings-account-section', id: 'settings-account-area'}, authSection));
+
+    const body = el('div', {}, ...bodyChildren);
 
     openModalWithNode(i18n('settings'), body);
 
@@ -151,14 +176,26 @@ export function showAuthModal(autoStartOauth = false) {
       browser.storage.local.set({ rd_hover_lift: e.target.checked });
       document.documentElement.setAttribute('data-hover-lift', e.target.checked ? 'on' : 'off');
     });
-    DOM.$('#toggle-jd2').addEventListener('change', (e) => {
-      state.useJDownloader = e.target.checked;
-      browser.storage.local.set({ rd_use_jdownloader: state.useJDownloader });
-      const portContainer = DOM.$('#jd-port-container');
-      if (portContainer) {
-        portContainer.style.display = state.useJDownloader ? 'block' : 'none';
-      }
-    });
+
+    const toggleVlc = DOM.$('#toggle-vlc');
+    if (toggleVlc) {
+      toggleVlc.addEventListener('change', (e) => {
+        state.useVlc = e.target.checked;
+        browser.storage.local.set({ rd_use_vlc: state.useVlc });
+      });
+    }
+
+    const toggleJd2 = DOM.$('#toggle-jd2');
+    if (toggleJd2) {
+      toggleJd2.addEventListener('change', (e) => {
+        state.useJDownloader = e.target.checked;
+        browser.storage.local.set({ rd_use_jdownloader: state.useJDownloader });
+        const portContainer = DOM.$('#jd-port-container');
+        if (portContainer) {
+          portContainer.style.display = state.useJDownloader ? 'block' : 'none';
+        }
+      });
+    }
 
     const jdPortInput = DOM.$('#input-jd-port');
     if (jdPortInput) {
@@ -315,7 +352,8 @@ export async function forceLogout(msg = null) {
     'rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 
     'rd_oauth_client_secret', 'rd_token_expires_at', 'rd_cached_user', 
     'rd_cached_downloads', 'rd_oauth_pending', 'rd_ignore_locks',
-    'rd_tracked_ids', 'rd_local_notifications', 'rd_local_downloads'
+    'rd_tracked_ids', 'rd_local_notifications', 'rd_local_downloads',
+    'rd_use_vlc'
   ]);
   
   state.allDownloads = [];
