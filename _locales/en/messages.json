@@ -157,5 +157,10 @@
   "openInVlc": { "message": "Open in VLC" },
   "holdToDelete": { "message": "Hold to Delete" },
   "filterTorrent": { "message": "TOR ↻" },
-  "filterWeb": { "message": "WEB ↻" }
+  "filterWeb": { "message": "WEB ↻" },
+  "loading": { "message": "Loading..." },
+  "errorNoUrl": { "message": "Error: URL not provided." },
+  "defaultVideoName": { "message": "video" },
+  "defaultStreamName": { "message": "RD Stream" },
+  "downloadNameFallback": { "message": "Download" }
 }
