@@ -149,5 +149,7 @@
   "predicted": { "message": "restante (previsto)" },
   "addBtn": { "message": "Añadir" },
   "noFiles": { "message": "No se encontraron archivos." },
-  "addTorrentTitle": { "message": "Agregar Torrent / Magnet" }
+  "addTorrentTitle": { "message": "Agregar Torrent / Magnet" },
+  "dlFailedTitle": { "message": "Fallo en la Descarga" },
+  "dlFailedMessage": { "message": "Ocurrió un error en el archivo." }
 }
