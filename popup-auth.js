@@ -41,7 +41,7 @@ export function showAuthModal(autoStartOauth = false) {
       el('div', {className: 'form-group'},
         el('div', {className: 'toggle-row'},
           el('div', {},
-            el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, i18n('contextMenuLabel')),
+            el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, i18n('contextMenuToggleLabel')),
             el('div', {className: 'form-hint'}, i18n('contextMenuDesc'))
           ),
           el('label', {className: 'toggle-switch'},
