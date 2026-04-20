@@ -96,13 +96,14 @@ function renderAddForm() {
       if (file && (file.name.toLowerCase().endsWith('.dlc') || file.name.toLowerCase().endsWith('.rsdf') || file.name.toLowerCase().endsWith('.ccf'))) {
         
         try {
-          // Extração dos bytes brutos em ArrayBuffer e conversão para um Blob puro.
-          // Isto remove qualquer tipo MIME associado ao ficheiro original pelo navegador
-          // e garante que os bytes não contêm fronteiras de multipart, replicando o PowerShell.
-          const buffer = await file.arrayBuffer();
-          const rawBlob = new Blob([buffer]);
+          // Extração explícita do conteúdo do arquivo como string base
+          const dlcText = await file.text();
           
-          const responseData = await apiPut('/unrestrict/containerFile', rawBlob);
+          // Conversão da string para um Blob nativo. Isso assegura que o payload seja interpretado
+          // pelo fetch como um corpo binário puro sem formatação de formulário em volta.
+          const rawBlob = new Blob([dlcText]);
+          
+          const responseData = await apiPut('/unrestrict/containerFile', rawBlob, 'application/octet-stream');
           
           let extractedLinks = [];
           if (Array.isArray(responseData)) {
@@ -118,7 +119,7 @@ function renderAddForm() {
           const validLinks = extractedLinks.filter(link => typeof link === 'string' && link.trim().startsWith('http'));
 
           if (validLinks.length === 0) {
-            toast('A API do Real-Debrid processou o ficheiro mas não extraiu links suportados.', 'error');
+            toast('A API do Real-Debrid processou o arquivo mas não extraiu links.', 'error');
             submitBtn.disabled = false;
             submitBtn.classList.remove('loading');
             submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
@@ -129,7 +130,7 @@ function renderAddForm() {
           return;
         } catch (err) {
           console.warn('RD Manager: Falha ao processar container na API pública', err);
-          toast('Falha técnica ao descriptografar ficheiro na API.', 'error');
+          toast('Falha técnica ao descriptografar arquivo na API.', 'error');
           submitBtn.disabled = false;
           submitBtn.classList.remove('loading');
           submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
@@ -218,7 +219,7 @@ async function handleFileSelection(torrentId) {
       if (info && info.status !== 'magnet_conversion') break;
     } catch (err) {
       if (err.message === 'Unauthenticated') return;
-      console.debug('RD Manager: Polling falhou ao aguardar seleção de ficheiros.', err);
+      console.debug('RD Manager: Polling falhou ao aguardar seleção de arquivos.', err);
     }
     await new Promise(r => setTimeout(r, 1000));
     attempts++;
@@ -285,7 +286,7 @@ async function handleFileSelection(torrentId) {
       setTimeout(() => window.close(), 1500); 
     } catch (err) {
       if (err.message === 'Unauthenticated') return;
-      console.warn('RD Manager: Falha ao despachar selecção de ficheiros', err);
+      console.warn('RD Manager: Falha ao despachar seleção de arquivos', err);
       toast(i18n('failedStart'), 'error');
       confirmBtn.disabled = false;
       confirmBtn.textContent = i18n('startDownload');
