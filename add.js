@@ -63,7 +63,7 @@ function renderAddForm() {
     el('div', {className: 'form-divider'}, el('span', {}, i18n('or'))),
     el('div', {className: 'form-group'},
       el('input', {type: 'file', id: 'input-torrent-file', accept: '.torrent', style: 'display:none'}),
-      el('button', {className: 'form-file-btn', id: 'btn-select-torrent'}, btnSvg.cloneNode(true), i18n('selectTorrentFile')),
+      el('button', {className: 'form-file-btn', id: 'btn-select-torrent', 'aria-label': i18n('selectTorrentFile')}, btnSvg.cloneNode(true), i18n('selectTorrentFile')),
       el('div', {className: 'form-file-name', id: 'selected-file-name'})
     ),
     el('button', {className: 'form-submit', id: 'submit-torrent'}, i18n('addBtn'), el('span', {className: 'btn-spinner'}))
@@ -131,6 +131,7 @@ function renderAddForm() {
         await handleFileSelection(torrentId);
       }
     } catch (err) {
+      console.warn('RD Manager: Falha ao adicionar torrent/magnet', err);
       if (err.message === 'Unauthenticated') return;
       toast(i18n('failedAdd'), 'error');
       submitBtn.disabled = false;
@@ -156,6 +157,7 @@ async function handleFileSelection(torrentId) {
       if (info && info.status !== 'magnet_conversion') break;
     } catch (err) {
       if (err.message === 'Unauthenticated') return;
+      console.debug('RD Manager: Polling falhou ao aguardar seleção de ficheiros.', err);
     }
     await new Promise(r => setTimeout(r, 1000));
     attempts++;
@@ -220,6 +222,7 @@ async function handleFileSelection(torrentId) {
       setTimeout(() => window.close(), 1500); 
     } catch (err) {
       if (err.message === 'Unauthenticated') return;
+      console.warn('RD Manager: Falha ao despachar selecção de ficheiros', err);
       toast(i18n('failedStart'), 'error');
       confirmBtn.disabled = false;
       confirmBtn.textContent = i18n('startDownload');
@@ -232,4 +235,6 @@ async function handleFileSelection(torrentId) {
     fileList,
     confirmBtn
   ));
+  
+  setTimeout(() => selectAllBtn.focus(), 100);
 }
