@@ -1,4 +1,4 @@
-import { localizeHtmlPage } from './utils.js';
+import { localizeHtmlPage, i18n } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   localizeHtmlPage();
@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     vlcBtn.addEventListener('click', (e) => {
       e.preventDefault();
       
-      const safeFilename = (title || 'video').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const m3uContent = `#EXTM3U\n#EXTINF:-1,${title || 'RD Stream'}\n${url}`;
+      const safeFilename = (title || i18n('defaultVideoName')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const m3uContent = `#EXTM3U\n#EXTINF:-1,${title || i18n('defaultStreamName')}\n${url}`;
       const blob = new Blob([m3uContent], { type: 'application/vnd.apple.mpegurl' });
       const blobUrl = URL.createObjectURL(blob);
       
@@ -38,6 +38,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
   } else {
-    document.getElementById('title').textContent = 'Erro: URL não fornecida.';
+    document.getElementById('title').textContent = i18n('errorNoUrl');
   }
 });
