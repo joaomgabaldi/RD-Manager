@@ -6,8 +6,7 @@ const DEFAULT_BADGE_COLOR = '#1a9c4a';
 
 onAuthFailure(() => {
   console.warn('RD Manager: Falha de autenticação detetada em background.');
-  browser.runtime.sendMessage({ action: 'force_logout' }).catch(() => {
-  });
+  browser.runtime.sendMessage({ action: 'force_logout' }).catch(() => {});
 });
 
 browser.runtime.onInstalled.addListener(async () => {
@@ -62,7 +61,7 @@ async function deleteTorrentsSequentially(ids) {
     try {
       await apiDelete(`/torrents/delete/${id}`);
     } catch (err) {
-      console.warn(`RD Manager: Falha silenciosa ao deletar torrent ${id} em background:`, err);
+      console.warn(`RD Manager: Falha ao deletar torrent ${id} em background:`, err);
     }
   }
 }
@@ -118,7 +117,7 @@ async function checkForCompletedDownloads() {
     await updateBadgeCount();
 
   } catch (err) {
-    console.warn('Completion check failed');
+    console.warn('RD Manager: Falha no completion check', err);
   }
 }
 
@@ -172,7 +171,7 @@ browser.contextMenus.onClicked.addListener(async (info, tab) => {
     showBadge(true);
     setTimeout(checkForCompletedDownloads, 1000);
   } catch (err) {
-    console.warn('Context menu add failed');
+    console.warn('RD Manager: Context menu add failed:', err);
     showBadge(false);
   }
 });
