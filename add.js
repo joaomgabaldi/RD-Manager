@@ -97,10 +97,9 @@ function renderAddForm() {
                  file.name.toLowerCase().endsWith('.ccf') ||
                  file.name.toLowerCase().endsWith('.ccf3'))) {
       try {
-        const responseData = await apiPut('/unrestrict/containerFile', file, 'application/octet-stream');
-        
-        // Log para debugar o formato da resposta no Console do navegador (Ctrl+Shift+J)
-        console.log('RD containerFile response:', JSON.stringify(responseData));
+        const dlcText = await file.text();
+        const rawBlob = new Blob([dlcText]);
+        const responseData = await apiPut('/unrestrict/containerFile', rawBlob, 'application/octet-stream');
         
         let extractedLinks = [];
         if (Array.isArray(responseData)) {
@@ -161,27 +160,76 @@ function renderAddForm() {
 }
 
 function renderDecodedLinks(links) {
-  const textArea = el('textarea', {
+  const ul = el('ul', {
     className: 'form-input',
-    style: 'margin-top: 10px; height: 180px; font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.5; white-space: pre-wrap;',
-    readOnly: true,
-    spellcheck: 'false'
-    // Removido o value daqui para não setar como atributo HTML
+    style: 'margin-top: 10px; max-height: 180px; overflow-y: auto; list-style: none; padding: 10px; margin-bottom: 0;'
   });
-  
-  // A propriedade .value é setada diretamente no elemento DOM após a sua criação
-  textArea.value = links.join('\n');
+
+  links.forEach(link => {
+    const li = el('li', {
+      style: 'margin-bottom: 6px; word-break: break-all; font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 1.4;'
+    }, 
+      el('span', {style: 'color: var(--primary-color); margin-right: 4px;'}, '•'),
+      el('a', {
+        href: link,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+        style: 'color: var(--text-color); text-decoration: none; transition: color 0.2s;'
+      }, link)
+    );
+    ul.appendChild(li);
+  });
+
+  // Evento de hover em JS puro para não precisar mexer no popup.css
+  ul.querySelectorAll('a').forEach(a => {
+    a.addEventListener('mouseenter', () => a.style.color = 'var(--primary-color)');
+    a.addEventListener('mouseleave', () => a.style.color = 'var(--text-color)');
+  });
 
   const copyBtn = el('button', {
     className: 'action-btn ghost',
-    style: 'margin-top: 10px; width: 100%; justify-content: center; font-weight: 600;'
+    style: 'width: 100%; justify-content: center; font-weight: 600;'
   }, i18n('copyAllLinks'));
 
   copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(textArea.value).then(() => {
+    navigator.clipboard.writeText(links.join('\n')).then(() => {
       toast(i18n('copySuccess'), 'success');
     });
   });
+
+  const jd2Btn = el('button', {
+    className: 'action-btn ghost',
+    style: 'width: 100%; justify-content: center; font-weight: 600;'
+  }, i18n('exportJd2'));
+
+  jd2Btn.addEventListener('click', async () => {
+    jd2Btn.disabled = true;
+    jd2Btn.style.opacity = '0.5';
+    
+    try {
+      const form = new URLSearchParams();
+      form.append('passwords', '');
+      form.append('source', 'RDManager');
+      form.append('urls', links.join('\n'));
+
+      const res = await fetch('http://127.0.0.1:9666/flash/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: form.toString()
+      });
+
+      if (!res.ok) throw new Error('JDownloader not running');
+      toast(i18n('exportJd2Success'), 'success');
+    } catch (err) {
+      console.warn('RD Manager: Falha ao comunicar com JD2', err);
+      toast(i18n('exportJd2Error'), 'error');
+    } finally {
+      jd2Btn.disabled = false;
+      jd2Btn.style.opacity = '1';
+    }
+  });
+
+  const buttonsRow = el('div', {style: 'display: flex; gap: 8px; margin-top: 10px;'}, copyBtn, jd2Btn);
 
   const backBtn = el('button', {
     className: 'form-submit',
@@ -192,8 +240,8 @@ function renderDecodedLinks(links) {
 
   $('#content').replaceChildren(el('div', {},
     el('div', {style: 'font-weight: 600; font-size: 14px; margin-bottom: 5px; color: var(--primary-color);'}, i18n('decodedLinksTitle')),
-    textArea,
-    copyBtn,
+    ul,
+    buttonsRow,
     backBtn
   ));
 }
