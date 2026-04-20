@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RD Player</title>
+  <style>
+    body { margin: 0; background: #000; display: flex; flex-direction: column; height: 100vh; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; }
+    #header { padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: #111; border-bottom: 1px solid #333; flex-shrink: 0; }
+    #title { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; color: #eee; }
+    .actions { display: flex; gap: 10px; }
+    .btn { background: #1a9c4a; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: opacity 0.2s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-vlc { background: #ff8800; }
+    .video-container { flex: 1; display: flex; justify-content: center; align-items: center; background: #000; }
+    video { width: 100%; height: 100%; outline: none; }
+    .icon { width: 16px; height: 16px; fill: currentColor; }
+    .icon-stroke { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <div id="title" class="title">Loading...</div>
+    <div class="actions">
+      <a href="#" id="btn-vlc" class="btn btn-vlc" data-i18n-title="openInVlc">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 2L4 20h16L12 2z M4 15h16 M6 10h12" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        <span data-i18n="openInVlc">VLC</span>
+      </a>
+      <a href="#" id="btn-dl" class="btn" data-i18n-title="download">
+        <svg class="icon-stroke" viewBox="0 0 24 24"><path d="M12 3v10"/><polyline points="8 9 12 14 16 9"/><path d="M3 17v2a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/></svg>
+        <span data-i18n="download">Download</span>
+      </a>
+    </div>
+  </div>
+  <div class="video-container">
+    <video id="player" controls autoplay></video>
+  </div>
+  <script type="module" src="player.js"></script>
+</body>
+</html>
