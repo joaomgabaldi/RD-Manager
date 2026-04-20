@@ -32,9 +32,7 @@ export async function getValidToken() {
       return null;
     }
     
-    // Web Locks API: Garante que apenas 1 processo (popup ou background) faça o refresh por vez
     return await navigator.locks.request('rd_token_refresh', async () => {
-      // Double-check pattern: verifica se a outra thread já atualizou o token enquanto esperávamos pelo lock
       const freshData = await browser.storage.local.get(['rd_access_token', 'rd_token_expires_at']);
       if (freshData.rd_access_token && Date.now() < (freshData.rd_token_expires_at - bufferMs)) {
         return freshData.rd_access_token;
@@ -188,9 +186,8 @@ export function trackId(id) {
     const set = new Set(rd_tracked_ids || []);
     set.add(id);
     
-    // Limite FIFO (Impede a fila de rastreamento de crescer infinitamente)
     while (set.size > 100) {
-      set.delete(set.values().next().value); // Remove o mais antigo (primeiro inserido)
+      set.delete(set.values().next().value);
     }
     
     await browser.storage.local.set({ rd_tracked_ids: [...set] });
