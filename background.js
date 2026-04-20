@@ -53,10 +53,15 @@ browser.runtime.onMessage.addListener((msg) => {
   }
 });
 
+// Utilitário para criar pausas assíncronas
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 async function deleteTorrentsSequentially(ids) {
   for (const id of ids) {
     try {
       await apiDelete(`/torrents/delete/${id}`);
+      // Pausa de 500ms entre exclusões para evitar Rate Limit (HTTP 429)
+      await sleep(500);
     } catch (err) {
       console.warn(`RD Manager: Falha ao deletar torrent ${id} em background:`, err);
     }
