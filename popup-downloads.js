@@ -664,7 +664,7 @@ function renderExpandedContent(dl) {
     li.style.cursor = 'default';
     const fnameEl = document.createElement('span');
     fnameEl.className = 'dl-file-name';
-    fnameEl.textContent = dl.name || 'Download';
+    fnameEl.textContent = dl.name || i18n('downloadNameFallback');
     fnameEl.style.opacity = '0.7';
     const fsize = document.createElement('span');
     fsize.className = 'dl-file-size';
@@ -942,7 +942,7 @@ export async function deleteDownload(type, id) {
 
   try {
     if (type === 'torrent') {
-      toast(i18n('deleting') || 'Excluindo', 'success');
+      toast(i18n('deleting'), 'success');
       await apiDelete(`/torrents/delete/${id}`);
     } else if (type === 'web') {
       const rd_local_downloads = await rdStorage.getLocalDownloads();
@@ -964,10 +964,10 @@ export async function deleteDownload(type, id) {
     cacheData(state.allDownloads);
 
     if (state.allDownloads.length === 0) showState('empty');
-    toast(i18n('removed') || 'Removido', 'success');
+    toast(i18n('removed'), 'success');
   } catch (err) {
     if (err.message === 'Unauthenticated') return;
-    toast(i18n('deleteFailed') || 'Falha ao remover', 'error');
+    toast(i18n('deleteFailed'), 'error');
     if (itemElement) {
       itemElement.style.opacity = '1';
       itemElement.style.pointerEvents = 'auto';
@@ -1094,7 +1094,7 @@ export async function playFile(type, id) {
       }
 
       if (links.length > 0) {
-        toast(state.useVlc ? (i18n('sendingToVlc') || 'Abrindo no VLC...') : i18n('startingStream'), 'success');
+        toast(state.useVlc ? i18n('sendingToVlc') : i18n('startingStream'), 'success');
         const unrestricted = await apiPost('/unrestrict/link', { link: links[0] });
         if (unrestricted?.download) triggerPlay(unrestricted.download, dl.name);
         else toast(i18n('failedDlLink'), 'error');
@@ -1116,8 +1116,8 @@ function triggerPlay(url, filename = '') {
   }
   
   if (state.useVlc) {
-    const safeFilename = (filename || 'video').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const m3uContent = `#EXTM3U\n#EXTINF:-1,${filename || 'RD Stream'}\n${url}`;
+    const safeFilename = (filename || i18n('defaultVideoName')).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const m3uContent = `#EXTM3U\n#EXTINF:-1,${filename || i18n('defaultStreamName')}\n${url}`;
     const blob = new Blob([m3uContent], { type: 'application/vnd.apple.mpegurl' });
     const blobUrl = URL.createObjectURL(blob);
     
@@ -1364,9 +1364,9 @@ function saveLocalDownloadsArray(unrestrictResults) {
           _rd_host: d.host,
           files: d.download ? [{
             id: 0,
-            name: d.filename || 'Download',
+            name: d.filename || i18n('downloadNameFallback'),
             size: d.filesize || 0,
-            short_name: d.filename || 'Download',
+            short_name: d.filename || i18n('downloadNameFallback'),
           }] : [],
         }));
 
