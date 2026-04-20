@@ -148,5 +148,6 @@
   "dayRemaining": { "message": "dia restante" },
   "predicted": { "message": "restante (previsto)" },
   "addBtn": { "message": "Adicionar" },
-  "noFiles": { "message": "Nenhum arquivo encontrado." }
+  "noFiles": { "message": "Nenhum arquivo encontrado." },
+  "addTorrentTitle": { "message": "Adicionar Torrent / Magnet" }
 }
