@@ -1,8 +1,8 @@
 export const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
-export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM'; // Fonte única de verdade
+export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM';
 
-const authFailureCallbacks = new Set(); // Usando Set para evitar duplicatas
+const authFailureCallbacks = new Set();
 
 export function onAuthFailure(cb) {
   authFailureCallbacks.add(cb);
