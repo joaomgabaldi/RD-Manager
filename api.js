@@ -1,150 +1,159 @@
 export const API_BASE = 'https://api.real-debrid.com/rest/1.0';
 export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
-export const TIMEOUT_DEFAULT_MS = 10_000;
+const CLIENT_ID = 'X245A4XAIBGVM';
 
-let authFailureCallback = null;
+let authFailureCallbacks = [];
 
 export function onAuthFailure(cb) {
-  authFailureCallback = cb;
+  authFailureCallbacks.push(cb);
 }
 
 function triggerAuthFailure() {
-  if (authFailureCallback) authFailureCallback();
+  authFailureCallbacks.forEach(cb => cb());
 }
 
-export function fetchWithTimeout(url, options = {}, timeoutMs = TIMEOUT_DEFAULT_MS) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(timer));
+function handleUnauth(res) {
+  if (res.status === 401 || res.status === 403) {
+    browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
+    triggerAuthFailure();
+    throw new Error('Unauthenticated');
+  }
 }
 
 export async function getValidToken() {
   const data = await browser.storage.local.get(['rd_access_token', 'rd_refresh_token', 'rd_oauth_client_id', 'rd_oauth_client_secret', 'rd_token_expires_at']);
   if (!data.rd_access_token) return null;
 
-  if (Date.now() > data.rd_token_expires_at - 60000) {
-    try {
-      const res = await fetch(`${OAUTH_BASE}/token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: data.rd_oauth_client_id,
-          client_secret: data.rd_oauth_client_secret,
-          code: data.rd_refresh_token,
-          grant_type: 'http://oauth.net/grant_type/device/1.0'
-        }).toString()
-      });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403 || res.status === 400) {
-          await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
-          triggerAuthFailure();
-        }
-        return null;
-      }
-      const tokenData = await res.json();
-      const newExpiry = Date.now() + (tokenData.expires_in * 1000);
-      await browser.storage.local.set({
-        rd_access_token: tokenData.access_token,
-        rd_refresh_token: tokenData.refresh_token,
-        rd_token_expires_at: newExpiry
-      });
-      return tokenData.access_token;
-    } catch (_) {
+  if (Date.now() >= data.rd_token_expires_at) {
+    if (!data.rd_refresh_token) {
+      triggerAuthFailure();
       return null;
     }
+    return await refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret);
   }
   return data.rd_access_token;
 }
 
-export async function apiGet(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
-  const token = await getValidToken();
-  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
+async function refreshAccessToken(refreshToken, clientId, clientSecret) {
+  try {
+    const res = await fetch(`${OAUTH_BASE}/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'http://oauth.net/grant_type/device/1.0'
+      }).toString()
+    });
+
+    if (!res.ok) {
       await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
       triggerAuthFailure();
-      throw new Error('Unauthenticated');
+      return null;
     }
-    if (res.status === 404) return null;
-    throw new Error(`API error (${res.status})`);
+
+    const tokenData = await res.json();
+    const expiry = Date.now() + (tokenData.expires_in * 1000);
+    await browser.storage.local.set({
+      rd_access_token: tokenData.access_token,
+      rd_refresh_token: tokenData.refresh_token || refreshToken,
+      rd_token_expires_at: expiry
+    });
+
+    return tokenData.access_token;
+  } catch (err) {
+    return null;
   }
-  if (res.status === 204) return null;
+}
+
+export async function apiGet(endpoint) {
+  const token = await getValidToken();
+  if (!token) throw new Error('Unauthenticated');
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  handleUnauth(res);
+
+  if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
+  return res.json();
+}
+
+export async function apiPost(endpoint, bodyData, isFormUrlEncoded = true, timeoutMs = 0) {
+  const token = await getValidToken();
+  if (!token) throw new Error('Unauthenticated');
+
+  let body = bodyData;
+  let headers = { 'Authorization': `Bearer ${token}` };
+
+  if (isFormUrlEncoded) {
+    headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    body = new URLSearchParams(bodyData).toString();
+  }
+
+  const fetchOptions = { method: 'POST', headers, body };
+
+  if (timeoutMs > 0) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    fetchOptions.signal = controller.signal;
+    try {
+      const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+      clearTimeout(id);
+      handleUnauth(res);
+      if (!res.ok) throw new Error(`API POST Error: ${res.status}`);
+      const text = await res.text();
+      return text ? JSON.parse(text) : null;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  } else {
+    const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
+    handleUnauth(res);
+    if (!res.ok) throw new Error(`API POST Error: ${res.status}`);
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+  }
+}
+
+export async function apiPut(endpoint, blobData) {
+  const token = await getValidToken();
+  if (!token) throw new Error('Unauthenticated');
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'PUT',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: blobData
+  });
+
+  handleUnauth(res);
+
+  if (!res.ok) throw new Error(`API PUT Error: ${res.status}`);
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
 
-export async function apiPost(path, body, isForm = false, timeoutMs = null) {
+export async function apiDelete(endpoint) {
   const token = await getValidToken();
-  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
-  const headers = { Authorization: `Bearer ${token}` };
-  let fetchBody;
+  if (!token) throw new Error('Unauthenticated');
 
-  if (isForm) fetchBody = body;
-  else {
-    headers['Content-Type'] = 'application/x-www-form-urlencoded';
-    fetchBody = new URLSearchParams(body).toString();
-  }
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
 
-  const fetchFn = timeoutMs
-    ? fetchWithTimeout(`${API_BASE}${path}`, { method: 'POST', headers, body: fetchBody }, timeoutMs)
-    : fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: fetchBody });
+  handleUnauth(res);
 
-  const res = await fetchFn;
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
-      triggerAuthFailure();
-      throw new Error('Unauthenticated');
-    }
-    throw new Error(`API error (${res.status})`);
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-export async function apiPut(path, body, contentType = null, timeoutMs = null) {
-  const token = await getValidToken();
-  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
-  const headers = { Authorization: `Bearer ${token}` };
-  if (contentType) headers['Content-Type'] = contentType;
-  
-  const fetchFn = timeoutMs
-    ? fetchWithTimeout(`${API_BASE}${path}`, { method: 'PUT', headers, body }, timeoutMs)
-    : fetch(`${API_BASE}${path}`, { method: 'PUT', headers, body });
-
-  const res = await fetchFn;
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
-      triggerAuthFailure();
-      throw new Error('Unauthenticated');
-    }
-    throw new Error(`API error (${res.status})`);
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-export async function apiDelete(path, timeoutMs = TIMEOUT_DEFAULT_MS) {
-  const token = await getValidToken();
-  if (!token) { triggerAuthFailure(); throw new Error('Unauthenticated'); }
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }, timeoutMs);
-  if (!res.ok && res.status !== 204) {
-    if (res.status === 401 || res.status === 403) {
-      await browser.storage.local.remove(['rd_access_token', 'rd_refresh_token']);
-      triggerAuthFailure();
-      throw new Error('Unauthenticated');
-    }
-    throw new Error(`API error (${res.status})`);
-  }
-  return null;
+  if (!res.ok) throw new Error(`API DELETE Error: ${res.status}`);
+  return true;
 }
 
 export async function trackId(id) {
   const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
-  const tracked = new Set(rd_tracked_ids || []);
-  tracked.add(String(id));
-  await browser.storage.local.set({ rd_tracked_ids: [...tracked] });
+  const set = new Set(rd_tracked_ids || []);
+  set.add(id);
+  await browser.storage.local.set({ rd_tracked_ids: [...set] });
 }
