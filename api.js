@@ -3,6 +3,8 @@ export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
 export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM';
 
 const authFailureCallbacks = new Set();
+let refreshPromise = null; // Mutex para refresh de token
+let trackQueue = Promise.resolve(); // Fila para evitar race conditions no trackId
 
 export function onAuthFailure(cb) {
   authFailureCallbacks.add(cb);
@@ -29,7 +31,16 @@ export async function getValidToken() {
       triggerAuthFailure();
       return null;
     }
-    return await refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret);
+    
+    // Proteção contra múltiplas chamadas de refresh simultâneas (Race Condition)
+    if (refreshPromise) {
+      return refreshPromise;
+    }
+    
+    refreshPromise = refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret)
+      .finally(() => { refreshPromise = null; });
+      
+    return refreshPromise;
   }
   return data.rd_access_token;
 }
@@ -167,9 +178,18 @@ export async function apiDelete(endpoint) {
   return true;
 }
 
-export async function trackId(id) {
-  const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
-  const set = new Set(rd_tracked_ids || []);
-  set.add(id);
-  await browser.storage.local.set({ rd_tracked_ids: [...set] });
+export function trackId(id) {
+  return new Promise((resolve, reject) => {
+    trackQueue = trackQueue.then(async () => {
+      try {
+        const { rd_tracked_ids } = await browser.storage.local.get('rd_tracked_ids');
+        const set = new Set(rd_tracked_ids || []);
+        set.add(id);
+        await browser.storage.local.set({ rd_tracked_ids: [...set] });
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
 }
