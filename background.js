@@ -81,6 +81,7 @@ async function checkForCompletedDownloads() {
     if (trackedIds.size === 0) return;
 
     const current = [];
+    let changedTracked = false;
 
     const { rd_local_downloads } = await browser.storage.local.get('rd_local_downloads');
     if (Array.isArray(rd_local_downloads)) {
@@ -95,14 +96,17 @@ async function checkForCompletedDownloads() {
       } catch (err) {
         if (err.message && (err.message.includes('404') || err.message.includes('Error: 404'))) {
           trackedIds.delete(id);
+          changedTracked = true;
         }
       }
     }
 
     const justCompleted = current.filter(dl => dl.ready && trackedIds.has(dl.id));
-    
+
     if (justCompleted.length === 0) {
-      await browser.storage.local.set({ rd_tracked_ids: [...trackedIds] });
+      if (changedTracked) {
+        await browser.storage.local.set({ rd_tracked_ids: [...trackedIds] });
+      }
       return;
     }
 
