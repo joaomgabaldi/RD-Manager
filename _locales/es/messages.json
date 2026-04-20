@@ -139,7 +139,7 @@
   "fetchingDownloadsFailed": { "message": "Error al obtener descargas" },
   "verifyingAuth": { "message": "Verificando autorización..." },
   "multipleLinksExpand": { "message": "Múltiples archivos detectados. Expanda el elemento para elegir qué descargar." },
-  "predicted": { "message": "restante (previsto)" },
+  "timeRemaining": { "message": "restante (previsto)" },
   "addBtn": { "message": "Añadir" },
   "noFiles": { "message": "No se encontraron archivos." },
   "addTorrentTitle": { "message": "Añadir Torrent / Magnet" },
