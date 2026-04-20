@@ -138,5 +138,14 @@
   "addedAt": { "message": "añadido" },
   "predicted": { "message": "Previsto" },
   "noPrediction": { "message": "Sin predicción" },
-  "fetchingDownloadsFailed": { "message": "Error al obtener descargas" }
+  "fetchingDownloadsFailed": { "message": "Error al obtener descargas" },
+  "verifyingAuth": { "message": "Verificando autorización..." },
+  "multipleLinksExpand": { "message": "Múltiples archivos detectados. Expanda el elemento para elegir qué descargar." },
+  "clearAll": { "message": "Limpiar todo" },
+  "allCleared": { "message": "Todas las notificaciones han sido eliminadas." },
+  "urlTooltip": { "message": "Pegue uno o más enlaces aquí para desbloquearlos." },
+  "magnetTooltip": { "message": "Pegue un enlace magnet o seleccione un archivo .torrent a continuación." },
+  "dlNotificationsInfo": { "message": "Las notificaciones dependen de que el seguimiento de descargas esté activado." },
+  "dayRemaining": { "message": "día restante" },
+  "predicted": { "message": "restante (previsto)" }
 }
