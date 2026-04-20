@@ -93,32 +93,50 @@ function renderAddForm() {
     submitBtn.replaceChildren(i18n('adding'), el('span', {className: 'btn-spinner'}));
 
     try {
-      // TRATAMENTO PARA CONTAINERS (DLC, RSDF, CCF)
       if (file && (file.name.toLowerCase().endsWith('.dlc') || file.name.toLowerCase().endsWith('.rsdf') || file.name.toLowerCase().endsWith('.ccf'))) {
         
-        // Uso de FormData conforme sugerido para evitar erros de boundary e parsing binário no browser
-        const formData = new FormData();
-        formData.append('files', file, file.name);
+        try {
+          // Extração dos bytes brutos em ArrayBuffer e conversão para um Blob puro.
+          // Isto remove qualquer tipo MIME associado ao ficheiro original pelo navegador
+          // e garante que os bytes não contêm fronteiras de multipart, replicando o PowerShell.
+          const buffer = await file.arrayBuffer();
+          const rawBlob = new Blob([buffer]);
+          
+          const responseData = await apiPut('/unrestrict/containerFile', rawBlob);
+          
+          let extractedLinks = [];
+          if (Array.isArray(responseData)) {
+            extractedLinks = responseData;
+          } else if (responseData && Array.isArray(responseData.links)) {
+            extractedLinks = responseData.links;
+          } else if (responseData && typeof responseData === 'object') {
+            extractedLinks = Object.values(responseData);
+          } else if (typeof responseData === 'string') {
+            extractedLinks = [responseData];
+          }
 
-        const responseData = await apiPut('/unrestrict/containerFile', formData);
-        
-        // Parsing simplificado baseado no schema oficial (array de strings)
-        const extractedLinks = Array.isArray(responseData) ? responseData : [];
-        const validLinks = extractedLinks.filter(link => typeof link === 'string' && link.trim().startsWith('http'));
+          const validLinks = extractedLinks.filter(link => typeof link === 'string' && link.trim().startsWith('http'));
 
-        if (validLinks.length === 0) {
-          toast('Falha: A API não conseguiu extrair links válidos deste arquivo.', 'error');
+          if (validLinks.length === 0) {
+            toast('A API do Real-Debrid processou o ficheiro mas não extraiu links suportados.', 'error');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+            submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
+            return;
+          }
+
+          renderDecodedLinks(validLinks);
+          return;
+        } catch (err) {
+          console.warn('RD Manager: Falha ao processar container na API pública', err);
+          toast('Falha técnica ao descriptografar ficheiro na API.', 'error');
           submitBtn.disabled = false;
           submitBtn.classList.remove('loading');
           submitBtn.replaceChildren(i18n('addBtn'), el('span', {className: 'btn-spinner'}));
           return;
         }
-
-        renderDecodedLinks(validLinks);
-        return;
       }
 
-      // TRATAMENTO PARA TORRENT / MAGNET
       let torrentId = null;
       if (file) {
         const data = await apiPut('/torrents/addTorrent', file);
@@ -134,7 +152,7 @@ function renderAddForm() {
         await handleFileSelection(torrentId);
       }
     } catch (err) {
-      console.warn('RD Manager: Falha ao processar arquivo', err);
+      console.warn('RD Manager: Falha ao adicionar ou processar arquivo', err);
       if (err.message === 'Unauthenticated') return;
       toast(i18n('failedAdd'), 'error');
       submitBtn.disabled = false;
