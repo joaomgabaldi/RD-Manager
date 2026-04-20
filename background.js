@@ -29,7 +29,7 @@ function updateContextMenu() {
       if (enabled) {
         browser.contextMenus.create({
           id: 'send-to-rd',
-          title: browser.i18n.getMessage('contextMenuTitle') || 'Enviar para o RD Manager',
+          title: browser.i18n.getMessage('contextMenuTitle'),
           contexts: ['link', 'selection']
         });
       }
@@ -136,8 +136,8 @@ async function checkForCompletedDownloads() {
         const isError = ['error', 'dead', 'virus', 'magnet_error'].includes((dl.status || '').toLowerCase());
         return {
           id: `${dl.id}-${Date.now()}`,
-          title: isError ? (browser.i18n.getMessage('dlFailedTitle') || 'Falha no Download') : (browser.i18n.getMessage('dlAvailable') || 'Download Disponível'),
-          message: dl.name || (isError ? (browser.i18n.getMessage('dlFailedMessage') || 'Ocorreu um erro no arquivo.') : (browser.i18n.getMessage('dlCompletedMsg') || 'Um download foi concluído')),
+          title: isError ? browser.i18n.getMessage('dlFailedTitle') : browser.i18n.getMessage('dlAvailable'),
+          message: dl.name || (isError ? browser.i18n.getMessage('dlFailedMessage') : browser.i18n.getMessage('dlCompletedMsg')),
           type: dl.type,
           created_at: new Date().toISOString(),
           read: false,
@@ -231,7 +231,7 @@ async function unrestrictLink(link) {
   if (data && data.download) {
     const entry = {
       id: data.id || `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: data.filename || 'Download sem nome',
+      name: data.filename || browser.i18n.getMessage('unnamedDownload'),
       size: data.filesize || 0,
       progress: 1,
       download_state: 'completed',
@@ -242,9 +242,9 @@ async function unrestrictLink(link) {
       _rd_host: data.host,
       files: [{
         id: 0,
-        name: data.filename || 'Download',
+        name: data.filename || browser.i18n.getMessage('downloadNameFallback'),
         size: data.filesize || 0,
-        short_name: data.filename || 'Download',
+        short_name: data.filename || browser.i18n.getMessage('downloadNameFallback'),
       }],
     };
     const { rd_local_downloads } = await rdStorage.get('rd_local_downloads');
