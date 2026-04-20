@@ -6,7 +6,7 @@ const DEFAULT_BADGE_COLOR = '#1a9c4a';
 
 onAuthFailure(async () => {
   console.warn('RD Manager: Falha de autenticação detetada em background.');
-  await browser.alarms.clear(ALARM_NAME); // Desliga o polling quando o token for perdido
+  await browser.alarms.clear(ALARM_NAME);
   browser.runtime.sendMessage({ action: 'force_logout' }).catch(() => {});
 });
 
@@ -49,7 +49,7 @@ async function scheduleAlarm() {
 
 browser.runtime.onMessage.addListener((msg) => {
   if (msg === 'rd-check-now') {
-    scheduleAlarm(); // Reativa o alarme caso ele tenha morrido por auth failure
+    scheduleAlarm();
     setTimeout(checkForCompletedDownloads, 1000);
   }
   if (msg?.action === 'delete-torrents' && Array.isArray(msg.ids)) {
@@ -57,14 +57,12 @@ browser.runtime.onMessage.addListener((msg) => {
   }
 });
 
-// Utilitário para criar pausas assíncronas
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function deleteTorrentsSequentially(ids) {
   for (const id of ids) {
     try {
       await apiDelete(`/torrents/delete/${id}`);
-      // Pausa de 500ms entre exclusões para evitar Rate Limit (HTTP 429)
       await sleep(500);
     } catch (err) {
       console.warn(`RD Manager: Falha ao deletar torrent ${id} em background:`, err);
