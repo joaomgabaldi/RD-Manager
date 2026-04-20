@@ -82,7 +82,8 @@ async function checkForCompletedDownloads() {
     const trackedIds = new Set(rd_tracked_ids || []);
     if (trackedIds.size === 0) return;
 
-    const torrents = await apiGet('/torrents');
+    // Timeout de 10s para evitar travamento em chamadas em segundo plano
+    const torrents = await apiGet('/torrents', 10000);
     const current = [];
     if (Array.isArray(torrents)) {
       torrents.forEach(t => current.push({ id: String(t.id), name: t.filename, type: 'torrent', ready: isReady(t) }));
@@ -104,8 +105,8 @@ async function checkForCompletedDownloads() {
     const merged = [
       ...justCompleted.map(dl => ({
         id: `${dl.id}-${Date.now()}`,
-        title: 'Download Disponível',
-        message: dl.name || 'Um download foi concluído',
+        title: browser.i18n.getMessage('dlAvailable') || 'Download Disponível',
+        message: dl.name || browser.i18n.getMessage('dlCompletedMsg') || 'Um download foi concluído',
         type: dl.type,
         created_at: new Date().toISOString(),
         read: false,
