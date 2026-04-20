@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const url = params.get('url');
   const title = params.get('title');
+  const player = document.getElementById('player');
 
   if (title) {
     document.title = title;
@@ -13,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (url) {
-    document.getElementById('player').src = url;
+    player.src = url;
     document.getElementById('btn-dl').href = url;
     
     const vlcBtn = document.getElementById('btn-vlc');
@@ -40,4 +41,75 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     document.getElementById('title').textContent = i18n('errorNoUrl');
   }
+
+  setupSubtitleDragAndDrop(player);
 });
+
+function setupSubtitleDragAndDrop(videoElement) {
+  const dropZone = document.getElementById('drop-zone');
+  const dragOverlay = document.getElementById('drag-overlay');
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dragOverlay.classList.add('active');
+  });
+
+  dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    if (!e.relatedTarget || !dropZone.contains(e.relatedTarget)) {
+      dragOverlay.classList.remove('active');
+    }
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragOverlay.classList.remove('active');
+
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+    const isSrt = fileName.endsWith('.srt');
+    const isVtt = fileName.endsWith('.vtt');
+
+    if (!isSrt && !isVtt) {
+      alert(i18n('errorInvalidSubtitleFormat') || 'Formato inválido. Por favor, use um arquivo .SRT ou .VTT.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      let subtitleText = event.target.result;
+
+      if (isSrt) {
+        subtitleText = convertSrtToVtt(subtitleText);
+      }
+
+      const blob = new Blob([subtitleText], { type: 'text/vtt' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      Array.from(videoElement.querySelectorAll('track')).forEach(t => t.remove());
+
+      const track = document.createElement('track');
+      track.kind = 'subtitles';
+      track.label = file.name;
+      track.srclang = 'pt';
+      track.src = blobUrl;
+      track.default = true;
+
+      videoElement.appendChild(track);
+
+      if (videoElement.textTracks && videoElement.textTracks.length > 0) {
+        videoElement.textTracks[0].mode = 'showing';
+      }
+    };
+
+    reader.readAsText(file);
+  });
+}
+
+function convertSrtToVtt(srtContent) {
+  let vtt = 'WEBVTT\n\n';
+  vtt += srtContent.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+  return vtt;
+}
