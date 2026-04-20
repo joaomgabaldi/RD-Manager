@@ -938,7 +938,7 @@ export async function deleteSelected() {
     document.dispatchEvent(new CustomEvent('exit-selection-mode'));
   }, 150);
 
-  toast(i18n('deleting') || 'Excluindo', 'success');
+  toast(`${idsToDelete.size} item(s) excluído(s)`, 'success');
 
   const webTargets = targets.filter(dl => dl._type === 'web');
   const torrentTargets = targets.filter(dl => dl._type === 'torrent');
