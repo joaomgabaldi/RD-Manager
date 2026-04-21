@@ -1418,13 +1418,19 @@ export function showWebLinkModal() {
     submitBtn.replaceChildren(i18n('unlocking'), el('span', {className: 'btn-spinner'}));
 
     try {
-      const results = await Promise.allSettled(urls.map(url => apiPost('/unrestrict/link', { link: url })));
       const succeeded = [];
       let failed = 0;
-      results.forEach(r => {
-        if (r.status === 'fulfilled' && r.value) succeeded.push(r.value);
-        else failed++;
-      });
+
+      for (const url of urls) {
+        try {
+          const res = await apiPost('/unrestrict/link', { link: url });
+          if (res) succeeded.push(res);
+          else failed++;
+        } catch (err) {
+          failed++;
+        }
+        await new Promise(r => setTimeout(r, 200));
+      }
 
       if (succeeded.length > 0) await saveLocalDownloadsArray(succeeded);
 
