@@ -112,7 +112,7 @@ export function showAuthModal(autoStartOauth = false) {
           el('div', {className: 'toggle-row'},
             el('div', {},
               el('div', {className: 'form-label', style: 'margin-bottom:2px;'}, i18n('jd2Label')),
-              el('div', {className: 'form-hint'}, i18n('jd2Desc'))
+              el('div', {className: 'form-hint', id: 'jd2-desc-hint'}, i18n('jd2Desc', jdPortValue))
             ),
             el('label', {className: 'toggle-switch'},
               el('input', {type: 'checkbox', id: 'toggle-jd2', checked: jd2Enabled ? 'checked' : null}),
@@ -200,6 +200,8 @@ export function showAuthModal(autoStartOauth = false) {
       jdPortInput.addEventListener('change', (e) => {
         state.jdPort = e.target.value.trim() || '9666';
         rdStorage.set({ rd_jd_port: state.jdPort });
+        const hintEl = DOM.$('#jd2-desc-hint');
+        if (hintEl) hintEl.textContent = i18n('jd2Desc', state.jdPort);
       });
     }
 
