@@ -3,7 +3,7 @@ name: Update Plyr Assets
 on:
   schedule:
     - cron: '0 0 * * 0' # Executa todo domingo à meia-noite
-  workflow_dispatch: # Permite que você execute manualmente pelo botão "Actions" no GitHub
+  workflow_dispatch: # Permite execução manual
 
 jobs:
   update-plyr:
@@ -14,20 +14,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download latest Plyr JS and CSS
+      - name: Download latest Plyr Assets
         run: |
           curl -L https://cdn.plyr.io/3.7.8/plyr.js -o plyr.js
           curl -L https://cdn.plyr.io/3.7.8/plyr.css -o plyr.css
-          # Nota: O ideal é usar a URL da CDN da versão estável mais recente.
+          curl -L https://cdn.plyr.io/3.7.8/plyr.svg -o plyr.svg
 
       - name: Commit and push if changed
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add plyr.js plyr.css
+          git add plyr.js plyr.css plyr.svg
           if git diff --cached --quiet; then
             echo "Nenhuma alteração detectada."
           else
-            git commit -m "chore: update plyr assets to latest version"
+            git commit -m "chore: update plyr assets (js, css, svg) to latest version"
             git push
           fi
