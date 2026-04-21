@@ -169,5 +169,8 @@
   "copyAllLinks": { "message": "Copiar Todo" },
   "copySuccess": { "message": "¡Copiado al portapapeles!" },
   "back": { "message": "Volver" },
-  "exportJd2": { "message": "Enviar a JD" }
+  "exportJd2": { "message": "Enviar a JD" },
+  "jdIntegrationDisabled": { "message": "Integración desactivada. Active JDownloader en la configuración." },
+  "noLinksExtracted": { "message": "No se extrajeron enlaces del contenedor." },
+  "failedDecryptContainer": { "message": "Error al descifrar el archivo contenedor." }
 }
