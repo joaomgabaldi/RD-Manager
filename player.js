@@ -6,12 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const url = params.get('url');
   const title = params.get('title');
-  const videoElement = document.getElementById('player');
-
-  const player = new Plyr(videoElement, {
-    iconUrl: 'plyr.svg', 
-    captions: { active: true, update: true, language: 'pt' }
-  });
+  const player = document.getElementById('player');
 
   if (title) {
     document.title = title;
@@ -19,12 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (url) {
-    player.source = {
-      type: 'video',
-      title: title || 'RD Manager Video',
-      sources: [{ src: url }]
-    };
-    
+    player.src = url;
     document.getElementById('btn-dl').href = url;
     
     const vlcBtn = document.getElementById('btn-vlc');
@@ -52,10 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('title').textContent = i18n('errorNoUrl');
   }
 
-  setupSubtitleDragAndDrop(videoElement, player);
+  setupSubtitleDragAndDrop(player);
 });
 
-function setupSubtitleDragAndDrop(videoElement, plyrInstance) {
+function setupSubtitleDragAndDrop(videoElement) {
   const dropZone = document.getElementById('drop-zone');
   const dragOverlay = document.getElementById('drag-overlay');
 
@@ -83,7 +73,7 @@ function setupSubtitleDragAndDrop(videoElement, plyrInstance) {
     const isVtt = fileName.endsWith('.vtt');
 
     if (!isSrt && !isVtt) {
-      alert(i18n('errorInvalidSubtitleFormat') || 'Formato inválido.');
+      alert(i18n('errorInvalidSubtitleFormat') || 'Formato inválido. Por favor, use um arquivo .SRT ou .VTT.');
       return;
     }
 
@@ -117,12 +107,10 @@ function setupSubtitleDragAndDrop(videoElement, plyrInstance) {
       track.default = true;
 
       videoElement.appendChild(track);
-      
-      setTimeout(() => {
-        if (plyrInstance.captions) {
-          plyrInstance.captions.active = true;
-        }
-      }, 100);
+
+      if (videoElement.textTracks && videoElement.textTracks.length > 0) {
+        videoElement.textTracks[0].mode = 'showing';
+      }
     };
 
     reader.readAsArrayBuffer(file);
