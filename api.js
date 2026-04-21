@@ -16,7 +16,7 @@ function triggerAuthFailure() {
 }
 
 function handleUnauth(res) {
-  if (res.status === 401) {
+  if (res.status === 401 || res.status === 403) {
     rdStorage.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
     triggerAuthFailure();
     throw new Error('Unauthenticated');
@@ -28,8 +28,20 @@ async function fetchWithRateLimitRetry(url, options, maxRetries = 3, baseDelayMs
     const res = await fetch(url, options);
     if (res.status === 429 && attempt < maxRetries) {
       const retryAfter = res.headers.get('Retry-After');
-      let delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : baseDelayMs * Math.pow(2, attempt);
-      if (isNaN(delay)) delay = baseDelayMs * Math.pow(2, attempt);
+      let delay = baseDelayMs * Math.pow(2, attempt);
+      
+      if (retryAfter) {
+        const parsedInt = parseInt(retryAfter, 10);
+        if (!isNaN(parsedInt) && String(parsedInt) === retryAfter.trim()) {
+          delay = parsedInt * 1000;
+        } else {
+          const parsedDate = Date.parse(retryAfter);
+          if (!isNaN(parsedDate)) {
+            delay = Math.max(0, parsedDate - Date.now());
+          }
+        }
+      }
+      
       console.warn(`RD Manager: HTTP 429 Too Many Requests. Retrying in ${delay}ms (Attempt ${attempt + 1}/${maxRetries}).`);
       await new Promise(resolve => setTimeout(resolve, delay));
       continue;
@@ -78,7 +90,7 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
   });
 
   if (!res.ok) {
-    if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+    if (res.status === 401 || res.status === 403) {
       await rdStorage.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
       triggerAuthFailure();
       return null;
