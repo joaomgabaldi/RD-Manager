@@ -41,7 +41,14 @@
   "invalidDlLink": { "message": "Enlace de descarga inválido" },
   "sendingToJd": { "message": "Enviando a JDownloader..." },
   "addedToJd": { "message": "¡Añadido a JDownloader!" },
-  "jdUnresponsive": { "message": "JDownloader no responde (puerto 9666)" },
+  "jdUnresponsive": { 
+    "message": "JDownloader no responde (puerto $PORT$)",
+    "placeholders": {
+      "port": {
+        "content": "$1"
+      }
+    }
+  },
   "jdFailedAskBrowser": { "message": "No se pudo conectar a JDownloader. ¿Deseas descargar a través del navegador?" },
   "yes": { "message": "Sí" },
   "no": { "message": "No" },
@@ -70,7 +77,14 @@
   "hoverLiftLabel": { "message": "Efecto de elevación al pasar el ratón" },
   "hoverLiftDesc": { "message": "Añade una sutil elevación y sombra." },
   "jd2Label": { "message": "Enviar a JDownloader" },
-  "jd2Desc": { "message": "Envía enlaces al puerto 9666. JD debe estar abierto." },
+  "jd2Desc": { 
+    "message": "Envía enlaces al puerto $PORT$. JD debe estar abierto.",
+    "placeholders": {
+      "port": {
+        "content": "$1"
+      }
+    }
+  },
   "jdPortLabel": { "message": "Puerto de JDownloader" },
   "vlcLabel": { "message": "Abrir de forma nativa en VLC (vía M3U)" },
   "vlcDesc": { "message": "Descarga un archivo .m3u que se abre automáticamente en VLC o en tu reproductor predeterminado." },
