@@ -22,30 +22,13 @@
     #content { 
       flex: 1; padding: 16px; overflow-y: auto; 
     }
-    .info-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: help; position: relative; }
-    .info-tooltip { 
-      visibility: hidden; width: 180px; background-color: var(--bg-surface); color: var(--text); 
-      text-align: center; border-radius: 6px; padding: 8px; position: absolute; z-index: 100; 
-      bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; 
-      font-size: 11px; font-weight: 400; line-height: 1.4; pointer-events: none; 
-      box-shadow: 0 4px 12px rgba(0,0,0,0.5); border: 1px solid var(--border);
-    }
-    .info-icon:hover .info-tooltip { visibility: visible; opacity: 1; }
   </style>
 </head>
 <body>
   <div class="window-header">
     <span class="window-title" data-i18n="addTorrentTitle"></span>
   </div>
-
-  <div id="content">
-    <div class="state-message">
-      <div class="spinner"></div>
-    </div>
-  </div>
-
-  <div id="toast-container"></div>
-
-  <script type="module" src="add.js"></script>
+  <div id="content"></div>
+<script type="module" src="add.js"></script>
 </body>
 </html>
