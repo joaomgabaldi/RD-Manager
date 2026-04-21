@@ -6,7 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const url = params.get('url');
   const title = params.get('title');
-  const player = document.getElementById('player');
+  const videoElement = document.getElementById('player');
+
+  const player = new Plyr(videoElement, {
+    iconUrl: 'plyr.svg', 
+    captions: { active: true, update: true, language: 'pt' }
+  });
 
   if (title) {
     document.title = title;
@@ -14,7 +19,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (url) {
-    player.src = url;
+    player.source = {
+      type: 'video',
+      title: title || 'RD Manager Video',
+      sources: [{ src: url }]
+    };
+    
     document.getElementById('btn-dl').href = url;
     
     const vlcBtn = document.getElementById('btn-vlc');
@@ -42,10 +52,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('title').textContent = i18n('errorNoUrl');
   }
 
-  setupSubtitleDragAndDrop(player);
+  setupSubtitleDragAndDrop(videoElement, player);
 });
 
-function setupSubtitleDragAndDrop(videoElement) {
+function setupSubtitleDragAndDrop(videoElement, plyrInstance) {
   const dropZone = document.getElementById('drop-zone');
   const dragOverlay = document.getElementById('drag-overlay');
 
@@ -73,7 +83,7 @@ function setupSubtitleDragAndDrop(videoElement) {
     const isVtt = fileName.endsWith('.vtt');
 
     if (!isSrt && !isVtt) {
-      alert(i18n('errorInvalidSubtitleFormat') || 'Formato inválido. Por favor, use um arquivo .SRT ou .VTT.');
+      alert(i18n('errorInvalidSubtitleFormat') || 'Formato inválido.');
       return;
     }
 
@@ -107,10 +117,12 @@ function setupSubtitleDragAndDrop(videoElement) {
       track.default = true;
 
       videoElement.appendChild(track);
-
-      if (videoElement.textTracks && videoElement.textTracks.length > 0) {
-        videoElement.textTracks[0].mode = 'showing';
-      }
+      
+      setTimeout(() => {
+        if (plyrInstance.captions) {
+          plyrInstance.captions.active = true;
+        }
+      }, 100);
     };
 
     reader.readAsArrayBuffer(file);
