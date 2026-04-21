@@ -1457,5 +1457,3 @@ export function showWebLinkModal() {
     }
   });
 }
-
-}
