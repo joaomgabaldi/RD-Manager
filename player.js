@@ -113,7 +113,6 @@ function setupSubtitleDragAndDrop(videoElement) {
       }
     };
 
-    // Lê como ArrayBuffer para permitir a detecção/fallback de encoding
     reader.readAsArrayBuffer(file);
   });
 }
