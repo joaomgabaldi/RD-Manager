@@ -1,5 +1,5 @@
 import { getValidToken, apiGet, apiPost, apiPut, trackId, onAuthFailure } from './api.js';
-import { i18n, localizeHtmlPage, el, makeSvg, formatBytes, toast, initFixedTooltips, sendToJDownloader } from './utils.js';
+import { i18n, localizeHtmlPage, el, makeSvg, formatBytes, toast, initFixedTooltips } from './utils.js';
 import { rdStorage } from './storage.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -190,7 +190,6 @@ function renderDecodedLinks(links) {
 
   copyBtn.addEventListener('click', () => {
     navigator.clipboard.writeText(links.join('\n')).then(() => {
-      // ---> TOAST SENDO CHAMADO AQUI <---
       toast(i18n('copySuccess'), 'success');
     });
   });
@@ -205,19 +204,29 @@ function renderDecodedLinks(links) {
     jdBtn.classList.add('loading');
     jdBtn.style.opacity = '0.7';
     
-    // ---> TOAST SENDO CHAMADO AQUI <---
     toast(i18n('sendingToJd'), 'info');
     
     try {
-      // Agora usa a função oficial que já tem os fallbacks anti-CORS da sua tela principal
-      await sendToJDownloader(links.join('\r\n'));
-      
-      // ---> TOAST DE SUCESSO AQUI <---
-      toast(i18n('addedToJd'), 'success');
+      const { rd_jd_port } = await rdStorage.get('rd_jd_port');
+      const jdPort = rd_jd_port || '9666';
+
+      const formData = new URLSearchParams();
+      formData.append('urls', links.join('\r\n'));
+      formData.append('autostart', '1');
+
+      const res = await fetch(`http://127.0.0.1:${jdPort}/flashgot`, {
+        method: 'POST',
+        body: formData.toString(),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (res.ok) {
+        toast(i18n('addedToJd'), 'success');
+      } else {
+        throw new Error('JD2 Error');
+      }
     } catch (err) {
       console.warn('RD Manager: Erro ao enviar para JD', err);
-      
-      // ---> TOAST DE ERRO AQUI <---
       toast(i18n('jdUnresponsive'), 'error');
     } finally {
       jdBtn.classList.remove('loading');
