@@ -79,13 +79,22 @@ function setupSubtitleDragAndDrop(videoElement) {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      let subtitleText = event.target.result;
+      const buffer = event.target.result;
+      const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+      let subtitleText;
+
+      try {
+        subtitleText = utf8Decoder.decode(new Uint8Array(buffer));
+      } catch (err) {
+        const latinDecoder = new TextDecoder('windows-1252');
+        subtitleText = latinDecoder.decode(new Uint8Array(buffer));
+      }
 
       if (isSrt) {
         subtitleText = convertSrtToVtt(subtitleText);
       }
 
-      const blob = new Blob([subtitleText], { type: 'text/vtt' });
+      const blob = new Blob([subtitleText], { type: 'text/vtt;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
 
       Array.from(videoElement.querySelectorAll('track')).forEach(t => t.remove());
@@ -104,7 +113,8 @@ function setupSubtitleDragAndDrop(videoElement) {
       }
     };
 
-    reader.readAsText(file);
+    // Lê como ArrayBuffer para permitir a detecção/fallback de encoding
+    reader.readAsArrayBuffer(file);
   });
 }
 
