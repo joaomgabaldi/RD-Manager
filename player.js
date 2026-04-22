@@ -42,8 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('title').textContent = i18n('errorNoUrl');
   }
 
-  setupCustomControls(player);
-  setupSubtitleDragAndDrop(player);
+  const { updateCcMenu } = setupCustomControls(player);
+  setupSubtitleDragAndDrop(player, updateCcMenu);
 });
 
 function setupCustomControls(video) {
@@ -169,25 +169,116 @@ function setupCustomControls(video) {
     }
   });
 
+  const btnAudio = document.getElementById('btn-audio');
+  const menuAudio = document.getElementById('audio-menu');
   const btnCc = document.getElementById('btn-cc');
-  btnCc.addEventListener('click', () => {
-    if (video.textTracks && video.textTracks.length > 0) {
-      const track = video.textTracks[0];
-      if (track.mode === 'showing') {
-        track.mode = 'hidden';
-        btnCc.style.opacity = '0.5';
-      } else {
-        track.mode = 'showing';
-        btnCc.style.opacity = '1';
-      }
+  const menuCc = document.getElementById('cc-menu');
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#audio-menu-container')) menuAudio.classList.add('hidden');
+    if (!e.target.closest('#cc-menu-container')) menuCc.classList.add('hidden');
+  });
+
+  btnAudio.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!btnAudio.classList.contains('disabled')) {
+      menuAudio.classList.toggle('hidden');
+      menuCc.classList.add('hidden');
     }
   });
+
+  btnCc.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!btnCc.classList.contains('disabled')) {
+      menuCc.classList.toggle('hidden');
+      menuAudio.classList.add('hidden');
+    }
+  });
+
+  const updateAudioMenu = () => {
+    menuAudio.replaceChildren();
+    if (!video.audioTracks || video.audioTracks.length <= 1) {
+      btnAudio.classList.add('disabled');
+      return;
+    }
+    btnAudio.classList.remove('disabled');
+    
+    for (let i = 0; i < video.audioTracks.length; i++) {
+      const track = video.audioTracks[i];
+      const btn = document.createElement('button');
+      btn.className = 'menu-item' + (track.enabled ? ' active' : '');
+      btn.textContent = track.label || track.language || `${i18n('track')} ${i + 1}`;
+      btn.addEventListener('click', () => {
+        for (let j = 0; j < video.audioTracks.length; j++) {
+          video.audioTracks[j].enabled = (i === j);
+        }
+        updateAudioMenu();
+      });
+      menuAudio.appendChild(btn);
+    }
+  };
+
+  const updateCcMenu = () => {
+    menuCc.replaceChildren();
+    if (!video.textTracks || video.textTracks.length === 0) {
+      btnCc.classList.add('disabled');
+      btnCc.title = i18n('subtitlesNoneLoaded');
+      return;
+    }
+    btnCc.classList.remove('disabled');
+    btnCc.title = i18n('toggleSubtitles');
+
+    const offBtn = document.createElement('button');
+    let anyShowing = false;
+    for (let i = 0; i < video.textTracks.length; i++) {
+      if (video.textTracks[i].mode === 'showing') anyShowing = true;
+    }
+    offBtn.className = 'menu-item' + (!anyShowing ? ' active' : '');
+    offBtn.textContent = i18n('off');
+    offBtn.addEventListener('click', () => {
+      for (let i = 0; i < video.textTracks.length; i++) video.textTracks[i].mode = 'hidden';
+      updateCcMenu();
+    });
+    menuCc.appendChild(offBtn);
+
+    for (let i = 0; i < video.textTracks.length; i++) {
+      const track = video.textTracks[i];
+      const btn = document.createElement('button');
+      btn.className = 'menu-item' + (track.mode === 'showing' ? ' active' : '');
+      btn.textContent = track.label || track.language || `${i18n('track')} ${i + 1}`;
+      btn.addEventListener('click', () => {
+        for (let j = 0; j < video.textTracks.length; j++) {
+          video.textTracks[j].mode = (i === j) ? 'showing' : 'hidden';
+        }
+        updateCcMenu();
+      });
+      menuCc.appendChild(btn);
+    }
+  };
+
+  video.addEventListener('loadedmetadata', () => {
+    updateAudioMenu();
+    updateCcMenu();
+  });
+
+  if (video.audioTracks) {
+    video.audioTracks.addEventListener('change', updateAudioMenu);
+    video.audioTracks.addEventListener('addtrack', updateAudioMenu);
+    video.audioTracks.addEventListener('removetrack', updateAudioMenu);
+  }
+  
+  if (video.textTracks) {
+    video.textTracks.addEventListener('change', updateCcMenu);
+    video.textTracks.addEventListener('addtrack', updateCcMenu);
+    video.textTracks.addEventListener('removetrack', updateCcMenu);
+  }
+
+  return { updateCcMenu };
 }
 
-function setupSubtitleDragAndDrop(videoElement) {
+function setupSubtitleDragAndDrop(videoElement, updateCcMenuCallback) {
   const dropZone = document.getElementById('drop-zone');
   const dragOverlay = document.getElementById('drag-overlay');
-  const btnCc = document.getElementById('btn-cc');
 
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -237,23 +328,23 @@ function setupSubtitleDragAndDrop(videoElement) {
       const blob = new Blob([subtitleText], { type: 'text/vtt;charset=utf-8' });
       const blobUrl = URL.createObjectURL(blob);
 
-      Array.from(videoElement.querySelectorAll('track')).forEach(t => t.remove());
-
       const track = document.createElement('track');
       track.kind = 'subtitles';
       track.label = file.name;
       track.srclang = 'pt';
       track.src = blobUrl;
-      track.default = true;
 
       videoElement.appendChild(track);
 
-      if (videoElement.textTracks && videoElement.textTracks.length > 0) {
-        videoElement.textTracks[0].mode = 'showing';
-        btnCc.classList.remove('disabled');
-        btnCc.title = i18n('toggleSubtitles');
-        btnCc.style.opacity = '1';
-      }
+      setTimeout(() => {
+        if (videoElement.textTracks && videoElement.textTracks.length > 0) {
+          for (let i = 0; i < videoElement.textTracks.length; i++) {
+            videoElement.textTracks[i].mode = 'hidden';
+          }
+          videoElement.textTracks[videoElement.textTracks.length - 1].mode = 'showing';
+          if (updateCcMenuCallback) updateCcMenuCallback();
+        }
+      }, 50);
     };
 
     reader.readAsArrayBuffer(file);
