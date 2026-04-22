@@ -186,5 +186,8 @@
   "exportJd2": { "message": "Send to JD" },
   "jdIntegrationDisabled": { "message": "Integration disabled. Enable JDownloader in the settings." },
   "noLinksExtracted": { "message": "No links were extracted from the container." },
-  "failedDecryptContainer": { "message": "Failed to decrypt the container file." }
+  "failedDecryptContainer": { "message": "Failed to decrypt the container file." },
+  "toggleSubtitles": { "message": "Toggle Subtitles" },
+  "subtitlesNoneLoaded": { "message": "Subtitles (None loaded)" },
+  "seedsLabel": { "message": "Seeds" }
 }
