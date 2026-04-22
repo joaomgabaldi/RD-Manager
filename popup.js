@@ -310,6 +310,49 @@ function bindEvents() {
 
   DOM.$('#download-list').addEventListener('click', handleListClick);
 
+  const dlList = DOM.$('#download-list');
+  
+  dlList.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const deleteBtn = e.target.closest('.dl-delete-btn');
+    if (deleteBtn) {
+      if (globals.ignoreNextClick) return;
+      
+      deleteBtn.classList.remove('no-transition');
+      deleteBtn.classList.add('holding');
+      
+      globals.deleteHoldTimer = setTimeout(() => {
+        deleteBtn.classList.add('no-transition');
+        deleteBtn.classList.remove('holding');
+        
+        globals.ignoreNextClick = true;
+        setTimeout(() => { globals.ignoreNextClick = false; }, 1000);
+        
+        import('./popup-downloads.js').then(m => m.deleteDownload(deleteBtn.dataset.type, deleteBtn.dataset.id));
+      }, 1500);
+    }
+  });
+
+  const cancelDeleteHold = () => {
+    if (globals.deleteHoldTimer) {
+      clearTimeout(globals.deleteHoldTimer);
+      globals.deleteHoldTimer = null;
+      DOM.$$('.dl-delete-btn.holding').forEach(btn => {
+        btn.classList.add('no-transition');
+        btn.classList.remove('holding');
+      });
+    }
+  };
+
+  dlList.addEventListener('mouseup', cancelDeleteHold);
+  dlList.addEventListener('mouseleave', cancelDeleteHold);
+  dlList.addEventListener('mouseout', (e) => {
+    const deleteBtn = e.target.closest('.dl-delete-btn');
+    if (deleteBtn && !deleteBtn.contains(e.relatedTarget)) {
+      cancelDeleteHold();
+    }
+  });
+
   DOM.$('#downloads-container').addEventListener('scroll', (e) => {
     const el = e.target;
     if (el.scrollHeight - el.scrollTop <= el.clientHeight + 100) {
@@ -342,12 +385,6 @@ function handleListClick(e) {
     } else {
       downloadFile(dlBtn.dataset.type, dlBtn.dataset.id);
     }
-    return;
-  }
-
-  const deleteBtn = e.target.closest('.dl-delete-btn');
-  if (deleteBtn) {
-    deleteDownload(deleteBtn.dataset.type, deleteBtn.dataset.id);
     return;
   }
 
