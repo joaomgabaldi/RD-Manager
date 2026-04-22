@@ -80,6 +80,15 @@
       z-index: 1; 
       background: #000;
     }
+
+    /* Estilização Nativa das Legendas */
+    ::cue {
+      font-size: 24px;
+      color: #ffffff;
+      text-shadow: 2px 2px 4px #000000, -1px -1px 2px #000000;
+      background-color: rgba(0, 0, 0, 0.75);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
     
     .icon { width: 16px; height: 16px; fill: currentColor; }
     .icon-stroke { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -113,9 +122,7 @@
       transition: height 0.1s ease;
     }
     
-    .progress-container:hover {
-      height: 8px;
-    }
+    .progress-container:hover { height: 8px; }
     
     .progress-filled {
       height: 100%;
@@ -160,11 +167,7 @@
       user-select: none;
     }
     
-    .volume-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .volume-container { display: flex; align-items: center; gap: 8px; }
     
     .volume-slider {
       -webkit-appearance: none;
@@ -191,6 +194,41 @@
       transform: scale(1.2);
       background: #1a9c4a;
     }
+
+    /* Menus de Áudio e Legenda */
+    .menu-container { position: relative; }
+    
+    .ctrl-menu {
+      position: absolute;
+      bottom: 100%;
+      right: 0;
+      margin-bottom: 10px;
+      background: rgba(17, 17, 17, 0.95);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 5px 0;
+      min-width: 140px;
+      display: flex;
+      flex-direction: column;
+      z-index: 100;
+    }
+    
+    .ctrl-menu.hidden { display: none; }
+    
+    .menu-item {
+      padding: 8px 15px;
+      background: transparent;
+      border: none;
+      color: #eee;
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: background 0.1s;
+    }
+    
+    .menu-item:hover { background: rgba(255, 255, 255, 0.1); }
+    .menu-item.active { color: #1a9c4a; font-weight: 600; }
     
     #drag-overlay {
       position: absolute;
@@ -229,7 +267,7 @@
   </div>
   
   <div class="video-container" id="drop-zone">
-    <video id="player" autoplay></video>
+    <video id="player" autoplay crossorigin="anonymous"></video>
     
     <div id="custom-controls" class="custom-controls">
       <div class="progress-container" id="progress-container">
@@ -255,9 +293,20 @@
         </div>
         
         <div class="controls-right">
-          <button id="btn-cc" class="ctrl-btn disabled" data-i18n-title="subtitlesNoneLoaded">
-            <svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11zm7 0h-1.5v-.5h-2v3h2V13H18v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11z"/></svg>
-          </button>
+          <div class="menu-container" id="audio-menu-container">
+            <button id="btn-audio" class="ctrl-btn disabled" data-i18n-title="audio">
+              <svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </button>
+            <div class="ctrl-menu hidden" id="audio-menu"></div>
+          </div>
+
+          <div class="menu-container" id="cc-menu-container">
+            <button id="btn-cc" class="ctrl-btn disabled" data-i18n-title="subtitlesNoneLoaded">
+              <svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11zm7 0h-1.5v-.5h-2v3h2V13H18v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11z"/></svg>
+            </button>
+            <div class="ctrl-menu hidden" id="cc-menu"></div>
+          </div>
+
           <button id="btn-fullscreen" class="ctrl-btn">
             <svg id="icon-fs-enter" viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
             <svg id="icon-fs-exit" viewBox="0 0 24 24" style="display:none;"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
