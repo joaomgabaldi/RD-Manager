@@ -189,5 +189,8 @@
   "failedDecryptContainer": { "message": "Failed to decrypt the container file." },
   "toggleSubtitles": { "message": "Toggle Subtitles" },
   "subtitlesNoneLoaded": { "message": "Subtitles (None loaded)" },
-  "seedsLabel": { "message": "Seeds" }
+  "seedsLabel": { "message": "Seeds" },
+  "audio": { "message": "Audio" },
+  "off": { "message": "Off" },
+  "track": { "message": "Track" }
 }
