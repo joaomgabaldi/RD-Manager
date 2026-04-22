@@ -166,7 +166,7 @@
   "convertPointsTooltip": { "message": "Convertir 1000 puntos en 30 días Premium" },
   "convertPointsSuccess": { "message": "¡Puntos convertidos! +30 días" },
   "convertPointsError": { "message": "Error al convertir puntos" },
-  "play": { "message": "Reproducir" },
+  "play": { "message": "Reproduzir" },
   "startingStream": { "message": "Iniciando stream..." },
   "openInVlc": { "message": "Abrir en VLC" },
   "holdToDelete": { "message": "Mantén p/ Eliminar" },
@@ -189,5 +189,8 @@
   "failedDecryptContainer": { "message": "Error al descifrar el archivo contenedor." },
   "toggleSubtitles": { "message": "Alternar Subtítulos" },
   "subtitlesNoneLoaded": { "message": "Subtítulos (Ninguno cargado)" },
-  "seedsLabel": { "message": "Semillas" }
+  "seedsLabel": { "message": "Semillas" },
+  "audio": { "message": "Audio" },
+  "off": { "message": "Desactivado" },
+  "track": { "message": "Pista" }
 }
