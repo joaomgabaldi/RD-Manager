@@ -328,7 +328,7 @@ async function handleFileSelection(torrentId) {
 
   if (fileList.lastChild) fileList.lastChild.style.borderBottom = 'none';
 
-  const selectAllBtn = el('button', {className: 'action-btn ghost', style: 'margin-bottom: 10px; width: 100%; justify-content: center;'}, i18n('selectAll'));
+  const selectAllBtn = el('button', {className: 'form-submit', style: 'margin-bottom: 10px; width: 100%; justify-content: center;'}, i18n('selectAll'));
   selectAllBtn.addEventListener('click', () => {
     const allChecked = checkboxes.every(c => c.checked);
     checkboxes.forEach(c => c.checked = !allChecked);
@@ -357,7 +357,7 @@ async function handleFileSelection(torrentId) {
   });
 
   $('#content').replaceChildren(el('div', {},
-    el('div', {style: 'font-weight: 600; margin-bottom: 10px;'}, i18n('selectFilesToDl')),
+    el('div', {style: 'font-weight: 600; margin-bottom: 10px; word-break: break-word; color: var(--accent);'}, info.filename || i18n('selectFilesToDl')),
     selectAllBtn,
     fileList,
     confirmBtn
