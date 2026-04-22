@@ -71,7 +71,6 @@
       overflow: hidden;
     }
     
-    /* Esconde o cursor quando o player estiver inativo */
     .video-container.idle { cursor: none; }
     
     video { 
@@ -85,7 +84,6 @@
     .icon { width: 16px; height: 16px; fill: currentColor; }
     .icon-stroke { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     
-    /* Controles Customizados */
     .custom-controls {
       position: absolute;
       bottom: 0;
@@ -194,7 +192,6 @@
       background: #1a9c4a;
     }
     
-    /* Estilos do Drag and Drop de Legendas */
     #drag-overlay {
       position: absolute;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -258,7 +255,7 @@
         </div>
         
         <div class="controls-right">
-          <button id="btn-cc" class="ctrl-btn disabled" title="Legendas (Nenhuma carregada)">
+          <button id="btn-cc" class="ctrl-btn disabled" data-i18n-title="subtitlesNoneLoaded">
             <svg viewBox="0 0 24 24"><path d="M19 4H5c-1.11 0-2 .9-2 2v12c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11zm7 0h-1.5v-.5h-2v3h2V13H18v1.5c0 .28-.22.5-.5.5h-3c-.28 0-.5-.22-.5-.5v-4c0-.28.22-.5.5-.5h3c.28 0 .5.22.5.5V11z"/></svg>
           </button>
           <button id="btn-fullscreen" class="ctrl-btn">
