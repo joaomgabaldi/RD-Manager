@@ -5,7 +5,6 @@ export const OAUTH_BASE = 'https://api.real-debrid.com/oauth/v2';
 export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM';
 
 const authFailureCallbacks = new Set();
-let trackQueue = Promise.resolve();
 
 export function onAuthFailure(cb) {
   authFailureCallbacks.add(cb);
@@ -215,22 +214,21 @@ export async function apiDelete(endpoint) {
   return true;
 }
 
-export function trackId(id) {
-  const operation = trackQueue.then(async () => {
-    const { rd_tracked_ids } = await rdStorage.get('rd_tracked_ids');
-    const set = new Set(rd_tracked_ids || []);
-    set.add(id);
-    
-    while (set.size > 100) {
-      set.delete(set.values().next().value);
-    }
-    
-    await rdStorage.set({ rd_tracked_ids: [...set] });
-  });
-
-  trackQueue = operation.catch((err) => {
+export async function trackId(id) {
+  try {
+    await navigator.locks.request('rd_track_id_lock', async () => {
+      const { rd_tracked_ids } = await rdStorage.get('rd_tracked_ids');
+      const set = new Set(rd_tracked_ids || []);
+      set.add(id);
+      
+      while (set.size > 100) {
+        set.delete(set.values().next().value);
+      }
+      
+      await rdStorage.set({ rd_tracked_ids: [...set] });
+    });
+  } catch (err) {
     console.error('RD Manager: Falha ao rastrear ID', err);
-  });
-
-  return operation;
+    throw err;
+  }
 }
