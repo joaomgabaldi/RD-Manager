@@ -9,11 +9,9 @@ if (typeof document !== 'undefined' && !document.getElementById('rd-dynamic-styl
   const style = document.createElement('style');
   style.id = 'rd-dynamic-styles';
   style.textContent = `
-    .dl-item.download-mode .dl-file-item.dl-file-info { cursor: default !important; }
-    .dl-item.download-mode .dl-file-item.dl-file-info .dl-file-name { text-decoration: none !important; opacity: 0.7 !important; }
     .dl-file-actions { display: none; gap: 4px; align-items: center; margin-left: auto; }
-    .dl-file-item.dl-file-info:hover .dl-file-size { display: none; }
-    .dl-file-item.dl-file-info:hover .dl-file-actions { display: flex; }
+    .dl-file-item.dl-file-info.has-actions:hover .dl-file-size { display: none; }
+    .dl-file-item.dl-file-info.has-actions:hover .dl-file-actions { display: flex; }
     .dl-file-action-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; transition: all 0.15s ease; }
     .dl-file-action-btn:hover { background: var(--bg-hover); color: var(--accent); }
     .dl-file-action-btn.play:hover { color: var(--blue, #5ea8f4); }
@@ -664,30 +662,35 @@ function renderExpandedContent(dl) {
         fsize.textContent = f.size ? formatBytes(f.size) : '—';
         fsize.style.opacity = '0.7';
 
-        const actionsEl = document.createElement('div');
-        actionsEl.className = 'dl-file-actions';
-
-        if (isVideo(f.short_name || f.name)) {
-          const playBtn = document.createElement('button');
-          playBtn.className = 'dl-file-action-btn play';
-          playBtn.dataset.action = 'play-file';
-          playBtn.dataset.index = idx;
-          playBtn.title = i18n('play');
-          playBtn.appendChild(makePlaySvg());
-          actionsEl.appendChild(playBtn);
-        }
-
-        const dlBtn = document.createElement('button');
-        dlBtn.className = 'dl-file-action-btn download';
-        dlBtn.dataset.action = 'download-file';
-        dlBtn.dataset.index = idx;
-        dlBtn.title = i18n('download');
-        dlBtn.appendChild(makeDownloadSvg());
-        actionsEl.appendChild(dlBtn);
-        
         li.appendChild(fnameEl);
         li.appendChild(fsize);
-        li.appendChild(actionsEl);
+
+        if (links.length > 1) {
+          li.classList.add('has-actions');
+          const actionsEl = document.createElement('div');
+          actionsEl.className = 'dl-file-actions';
+
+          if (isVideo(f.short_name || f.name)) {
+            const playBtn = document.createElement('button');
+            playBtn.className = 'dl-file-action-btn play';
+            playBtn.dataset.action = 'play-file';
+            playBtn.dataset.index = idx;
+            playBtn.title = i18n('play');
+            playBtn.appendChild(makePlaySvg());
+            actionsEl.appendChild(playBtn);
+          }
+
+          const dlBtn = document.createElement('button');
+          dlBtn.className = 'dl-file-action-btn download';
+          dlBtn.dataset.action = 'download-file';
+          dlBtn.dataset.index = idx;
+          dlBtn.title = i18n('download');
+          dlBtn.appendChild(makeDownloadSvg());
+          actionsEl.appendChild(dlBtn);
+          
+          li.appendChild(actionsEl);
+        }
+
         ul.appendChild(li);
       });
       expandedContent.appendChild(ul);
