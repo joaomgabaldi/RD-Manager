@@ -4,7 +4,7 @@ import { rdStorage } from './storage.js';
 import { i18n, localizeHtmlPage } from './utils.js';
 import { showAuthModal, forceLogout, pollDeviceCredentials } from './popup-auth.js';
 import { loadLocalNotifications, showNotificationsModal } from './popup-notifications.js';
-import { fetchAll, fetchUserInfo, renderDownloads, refreshInBackground, enforceSelectionLock, stopAutoRefresh, showState, deleteSelected, showWebLinkModal, downloadFile, playFile, deleteDownload, fetchTorrentFiles, openFileSelectionModal, isCompleted, showUserBar, updateAgeFilterUI } from './popup-downloads.js';
+import { fetchAll, fetchUserInfo, renderDownloads, refreshInBackground, enforceSelectionLock, stopAutoRefresh, showState, deleteSelected, showWebLinkModal, downloadFile, playFile, deleteDownload, fetchTorrentFiles, openFileSelectionModal, isCompleted, showUserBar, updateAgeFilterUI, downloadSpecificFile } from './popup-downloads.js';
 import { closeModal } from './popup-modals.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -395,10 +395,27 @@ function handleListClick(e) {
     return;
   }
 
+  const fileItemInfo = e.target.closest('.dl-file-item.dl-file-info');
+  if (fileItemInfo) {
+    const item = fileItemInfo.closest('.dl-item');
+    if (item && item.classList.contains('download-mode')) {
+      const fileIndex = parseInt(fileItemInfo.dataset.index, 10);
+      if (!isNaN(fileIndex)) {
+        downloadSpecificFile(item.dataset.id, fileIndex);
+      }
+      return;
+    }
+  }
+
   const item = e.target.closest('.dl-item');
   if (item && !e.target.closest('.dl-expanded-content')) {
     const isExpanding = !item.classList.contains('expanded');
     item.classList.toggle('expanded');
+    
+    if (!item.classList.contains('expanded')) {
+      item.classList.remove('download-mode');
+    }
+
     if (isExpanding) {
       const dlId = item.dataset.id;
       const dl = state.allDownloads.find(d => String(d.id) === dlId);
