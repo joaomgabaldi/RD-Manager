@@ -9,9 +9,15 @@ if (typeof document !== 'undefined' && !document.getElementById('rd-dynamic-styl
   const style = document.createElement('style');
   style.id = 'rd-dynamic-styles';
   style.textContent = `
-    .dl-item.download-mode .dl-file-item.dl-file-info { cursor: pointer !important; }
-    .dl-item.download-mode .dl-file-item.dl-file-info .dl-file-name { text-decoration: underline !important; }
-    .dl-item.download-mode .dl-file-item.dl-file-info:hover .dl-file-name { opacity: 1 !important; }
+    .dl-item.download-mode .dl-file-item.dl-file-info { cursor: default !important; }
+    .dl-item.download-mode .dl-file-item.dl-file-info .dl-file-name { text-decoration: none !important; opacity: 0.7 !important; }
+    .dl-file-actions { display: none; gap: 4px; align-items: center; margin-left: auto; }
+    .dl-file-item.dl-file-info:hover .dl-file-size { display: none; }
+    .dl-file-item.dl-file-info:hover .dl-file-actions { display: flex; }
+    .dl-file-action-btn { background: transparent; border: none; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 4px; transition: all 0.15s ease; }
+    .dl-file-action-btn:hover { background: var(--bg-hover); color: var(--accent); }
+    .dl-file-action-btn.play:hover { color: var(--blue, #5ea8f4); }
+    .dl-file-action-btn svg { width: 14px; height: 14px; }
   `;
   document.head.appendChild(style);
 }
@@ -647,16 +653,41 @@ function renderExpandedContent(dl) {
         li.dataset.index = idx;
         li.title = fileBaseName(f.name || f.short_name || `${i18n('fileX')} ${idx + 1}`);
         li.style.cursor = 'default';
+        
         const fnameEl = document.createElement('span');
         fnameEl.className = 'dl-file-name';
         fnameEl.textContent = f.short_name || f.name || `${i18n('fileX')} ${idx + 1}`;
         fnameEl.style.opacity = '0.7';
+        
         const fsize = document.createElement('span');
         fsize.className = 'dl-file-size';
         fsize.textContent = f.size ? formatBytes(f.size) : '—';
         fsize.style.opacity = '0.7';
+
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'dl-file-actions';
+
+        if (isVideo(f.short_name || f.name)) {
+          const playBtn = document.createElement('button');
+          playBtn.className = 'dl-file-action-btn play';
+          playBtn.dataset.action = 'play-file';
+          playBtn.dataset.index = idx;
+          playBtn.title = i18n('play');
+          playBtn.appendChild(makePlaySvg());
+          actionsEl.appendChild(playBtn);
+        }
+
+        const dlBtn = document.createElement('button');
+        dlBtn.className = 'dl-file-action-btn download';
+        dlBtn.dataset.action = 'download-file';
+        dlBtn.dataset.index = idx;
+        dlBtn.title = i18n('download');
+        dlBtn.appendChild(makeDownloadSvg());
+        actionsEl.appendChild(dlBtn);
+        
         li.appendChild(fnameEl);
         li.appendChild(fsize);
+        li.appendChild(actionsEl);
         ul.appendChild(li);
       });
       expandedContent.appendChild(ul);
@@ -1123,6 +1154,38 @@ export async function downloadSpecificFile(id, fileIndex) {
     if (err.message === 'noDlLink') return toast(i18n('noDlLink'), 'error');
     const msg = err.name === 'AbortError' ? i18n('dlTimeout') : i18n('dlFailed');
     toast(msg, 'error');
+  }
+}
+
+export async function playSpecificFile(id, fileIndex) {
+  try {
+    const dl = state.allDownloads.find(d => String(d.id) === String(id));
+    if (!dl) throw new Error('not_found');
+
+    let links = dl.links || [];
+    if (links.length === 0) {
+      const info = await apiGet(`/torrents/info/${id}`);
+      links = info?.links || [];
+    }
+
+    const link = links[fileIndex];
+    if (!link) throw new Error('noDlLink');
+
+    toast(state.useVlc ? i18n('sendingToVlc') : i18n('startingStream'), 'success');
+
+    const unrestricted = await apiPost('/unrestrict/link', { link });
+    if (unrestricted?.download) {
+      const fileInfo = (dl.files && dl.files[fileIndex]) || {};
+      const filename = fileInfo.short_name || fileInfo.name || dl.name;
+      triggerPlay(unrestricted.download, filename);
+    } else {
+      throw new Error('failedDlLink');
+    }
+  } catch (err) {
+    if (err.message === 'Unauthenticated') return;
+    if (err.message === 'failedDlLink') return toast(i18n('failedDlLink'), 'error');
+    if (err.message === 'noDlLink') return toast(i18n('noDlLink'), 'error');
+    toast(i18n('dlFailed'), 'error');
   }
 }
 
