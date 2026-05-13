@@ -6,6 +6,17 @@ export const OAUTH_CLIENT_ID = 'X245A4XAIBGVM';
 
 const authFailureCallbacks = new Set();
 
+export async function logDebug(event, data = {}) {
+  try {
+    const { rd_debug_logs } = await rdStorage.get('rd_debug_logs');
+    const logs = rd_debug_logs || [];
+    logs.unshift({ timestamp: new Date().toISOString(), event, data });
+    await rdStorage.set({ rd_debug_logs: logs.slice(0, 30) });
+  } catch (e) {
+    // Ignora falhas de I/O no log
+  }
+}
+
 export function onAuthFailure(cb) {
   authFailureCallbacks.add(cb);
 }
@@ -14,8 +25,9 @@ function triggerAuthFailure() {
   authFailureCallbacks.forEach(cb => cb());
 }
 
-function handleUnauth(res) {
+function handleUnauth(res, endpoint) {
   if (res.status === 401) {
+    logDebug('401_UNAUTHENTICATED_FATAL', { endpoint });
     throw new Error('Unauthenticated');
   }
   if (res.status === 403) {
@@ -62,6 +74,7 @@ export async function getValidToken() {
   const bufferMs = 300000;
   if (Date.now() >= (data.rd_token_expires_at - bufferMs)) {
     if (!data.rd_refresh_token) {
+      await logDebug('REFRESH_FAILED_NO_TOKEN', {});
       triggerAuthFailure();
       return null;
     }
@@ -69,11 +82,15 @@ export async function getValidToken() {
     return await navigator.locks.request('rd_token_refresh', async () => {
       const freshData = await rdStorage.get(['rd_access_token', 'rd_token_expires_at']);
       if (freshData.rd_access_token && Date.now() < (freshData.rd_token_expires_at - bufferMs)) {
+        await logDebug('REFRESH_SKIPPED_LOCK_WON', { message: 'Token atualizado por execução concorrente.' });
         return freshData.rd_access_token;
       }
 
+      await logDebug('REFRESH_START', { expired_at: data.rd_token_expires_at, now: Date.now() });
+
       return await refreshAccessToken(data.rd_refresh_token, data.rd_oauth_client_id, data.rd_oauth_client_secret)
-        .catch(err => {
+        .catch(async err => {
+          await logDebug('REFRESH_EXCEPTION', { error: err.message });
           console.warn('RD Manager: Falha temporária ao atualizar token.', err);
           return null; 
         });
@@ -95,6 +112,9 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
   });
 
   if (!res.ok) {
+    const errorText = await res.text().catch(() => 'No body text');
+    await logDebug('REFRESH_HTTP_ERROR', { status: res.status, body: errorText });
+    
     if (res.status === 401) {
       await rdStorage.remove(['rd_access_token', 'rd_refresh_token', 'rd_token_expires_at']);
       triggerAuthFailure();
@@ -109,6 +129,11 @@ async function refreshAccessToken(refreshToken, clientId, clientSecret) {
     rd_access_token: tokenData.access_token,
     rd_refresh_token: tokenData.refresh_token || refreshToken,
     rd_token_expires_at: expiry
+  });
+
+  await logDebug('REFRESH_SUCCESS', { 
+    expires_in: tokenData.expires_in, 
+    new_refresh_token_provided: !!tokenData.refresh_token 
   });
 
   return tokenData.access_token;
@@ -139,11 +164,12 @@ export async function apiGet(endpoint, timeoutMs = 0, _isRetry = false) {
   }
 
   if (res.status === 401 && !_isRetry) {
+    await logDebug('401_RETRY_TRIGGERED', { endpoint, method: 'GET' });
     await rdStorage.set({ rd_token_expires_at: 0 });
     return await apiGet(endpoint, timeoutMs, true);
   }
 
-  handleUnauth(res);
+  handleUnauth(res, endpoint);
   if (!res.ok) throw new Error(`API GET Error: ${res.status}`);
   return res.json();
 }
@@ -179,11 +205,12 @@ export async function apiPost(endpoint, bodyData, isFormUrlEncoded = true, timeo
   }
 
   if (res.status === 401 && !_isRetry) {
+    await logDebug('401_RETRY_TRIGGERED', { endpoint, method: 'POST' });
     await rdStorage.set({ rd_token_expires_at: 0 });
     return await apiPost(endpoint, bodyData, isFormUrlEncoded, timeoutMs, true);
   }
 
-  handleUnauth(res);
+  handleUnauth(res, endpoint);
   if (!res.ok) throw new Error(`API POST Error: ${res.status}`);
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -206,11 +233,12 @@ export async function apiPut(endpoint, blobData, contentType = null, _isRetry = 
   });
 
   if (res.status === 401 && !_isRetry) {
+    await logDebug('401_RETRY_TRIGGERED', { endpoint, method: 'PUT' });
     await rdStorage.set({ rd_token_expires_at: 0 });
     return await apiPut(endpoint, blobData, contentType, true);
   }
 
-  handleUnauth(res);
+  handleUnauth(res, endpoint);
 
   if (!res.ok) throw new Error(`API PUT Error: ${res.status}`);
   const text = await res.text();
@@ -227,11 +255,12 @@ export async function apiDelete(endpoint, _isRetry = false) {
   });
 
   if (res.status === 401 && !_isRetry) {
+    await logDebug('401_RETRY_TRIGGERED', { endpoint, method: 'DELETE' });
     await rdStorage.set({ rd_token_expires_at: 0 });
     return await apiDelete(endpoint, true);
   }
 
-  handleUnauth(res);
+  handleUnauth(res, endpoint);
 
   if (!res.ok) throw new Error(`API DELETE Error: ${res.status}`);
   return true;
