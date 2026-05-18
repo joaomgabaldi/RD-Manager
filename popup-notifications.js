@@ -1,3 +1,5 @@
+globalThis.browser = globalThis.browser || globalThis.chrome;
+
 import { state, DOM } from './popup-state.js';
 import { rdStorage } from './storage.js';
 import { i18n, formatTimeAgo, el, toast } from './utils.js';
