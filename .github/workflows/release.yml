@@ -86,10 +86,10 @@ jobs:
       - name: Create ZIP archives
         run: |
           cp manifest_ff.json manifest.json
-          zip -r release-firefox-${{ env.NEW_VERSION }}.zip . -x "README.md" -x ".git/*" -x ".github/*" -x "manifest_ff.json" -x "manifest_chromium.json"
+          zip -r release-firefox-${{ env.NEW_VERSION }}.zip . -x "*.zip" -x "README.md" -x ".git/*" -x ".github/*" -x "manifest_ff.json" -x "manifest_chromium.json"
           
           cp manifest_chromium.json manifest.json
-          zip -r release-chromium-${{ env.NEW_VERSION }}.zip . -x "README.md" -x ".git/*" -x ".github/*" -x "manifest_ff.json" -x "manifest_chromium.json"
+          zip -r release-chromium-${{ env.NEW_VERSION }}.zip . -x "*.zip" -x "README.md" -x ".git/*" -x ".github/*" -x "manifest_ff.json" -x "manifest_chromium.json"
           
           rm manifest.json
 
