@@ -35,7 +35,7 @@ jobs:
       - name: Calcular nova versão
         id: calc_version
         run: |
-          CURRENT_VERSION=$(jq -r '.version' manifest.json)
+          CURRENT_VERSION=$(jq -r '.version' manifest_ff.json)
           IFS='.' read -ra VER <<< "$CURRENT_VERSION"
           
           MAJOR="${VER[0]:-0}"
@@ -70,20 +70,28 @@ jobs:
           
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      - name: Update manifest.json version
+      - name: Update manifests version
         run: |
-          jq '.version = "${{ env.NEW_VERSION }}"' manifest.json > manifest_tmp.json && mv manifest_tmp.json manifest.json
+          jq '.version = "${{ env.NEW_VERSION }}"' manifest_ff.json > manifest_tmp_ff.json && mv manifest_tmp_ff.json manifest_ff.json
+          jq '.version = "${{ env.NEW_VERSION }}"' manifest_chromium.json > manifest_tmp_chromium.json && mv manifest_tmp_chromium.json manifest_chromium.json
 
-      - name: Commit and Push updated manifest
+      - name: Commit and Push updated manifests
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git commit -am "chore: atualiza versão do manifest para ${{ env.NEW_VERSION }}" || echo "Nenhuma mudança no manifest"
+          git add manifest_ff.json manifest_chromium.json
+          git commit -m "chore: atualiza versão dos manifests para ${{ env.NEW_VERSION }}" || echo "Nenhuma mudança nos manifests"
           git push
 
-      - name: Create ZIP archive
+      - name: Create ZIP archives
         run: |
-          zip -r release-${{ env.NEW_VERSION }}.zip . -x "README.md" -x ".git/*" -x ".github/*"
+          cp manifest_ff.json manifest.json
+          zip -r release-firefox-${{ env.NEW_VERSION }}.zip . -x "README.md" -x ".git/*" -x ".github/*" -x "manifest_ff.json" -x "manifest_chromium.json"
+          
+          cp manifest_chromium.json manifest.json
+          zip -r release-chromium-${{ env.NEW_VERSION }}.zip . -x "README.md" -x ".git/*" -x ".github/*" -x "manifest_ff.json" -x "manifest_chromium.json"
+          
+          rm manifest.json
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -91,6 +99,8 @@ jobs:
           tag_name: v${{ env.NEW_VERSION }}
           name: Release v${{ env.NEW_VERSION }}
           body: ${{ github.event.inputs.changelog }}
-          files: release-${{ env.NEW_VERSION }}.zip
+          files: |
+            release-firefox-${{ env.NEW_VERSION }}.zip
+            release-chromium-${{ env.NEW_VERSION }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
